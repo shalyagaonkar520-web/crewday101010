@@ -70,10 +70,9 @@ async function renderAt(path: string) {
 }
 
 describe('app shell', () => {
-  it('sends a signed-out visitor straight to sign in', async () => {
+  it('sends a signed-out visitor straight to explore', async () => {
     await renderAt('/')
-    expect(await screen.findByRole('heading', { name: /welcome back/i })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /continue with google/i })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: /discover events/i })).toBeTruthy()
   })
 
   it('keeps the long-form marketing page at /about', async () => {

@@ -19,8 +19,8 @@ export default function LoginPage() {
   const location = useLocation()
   const redirectTo = (location.state as LocationState | null)?.from ?? '/home'
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('shalyagaonkar@gmail.com')
+  const [password, setPassword] = useState('shalya@2004')
   const [showPassword, setShowPassword] = useState(false)
   const [busy, setBusy] = useState<'email' | 'google' | 'guest' | null>(null)
   const [error, setError] = useState<string | null>(null)

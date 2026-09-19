@@ -58,12 +58,12 @@ export function AppRoutes() {
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
         {/* Public */}
-        {/* Signed out lands on sign in; signed in goes to the feed. */}
+        {/* Signed out lands on explore; signed in goes to the feed. */}
         <Route
           path="/"
           element={
             <RedirectIfAuthenticated>
-              <Navigate to="/login" replace />
+              <Navigate to="/explore" replace />
             </RedirectIfAuthenticated>
           }
         />
