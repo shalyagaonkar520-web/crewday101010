@@ -74,8 +74,15 @@ export default function LoginPage() {
       {!isFirebaseConfigured ? (
         <div className="mb-5">
           <InlineAlert tone="warning">
-            Firebase is not configured yet. Add {missingFirebaseConfig.join(', ')} to your{' '}
-            <code>.env.local</code> and restart the dev server.
+            CrewDay is still being set up on this deployment — sign in is unavailable right now.
+            Please try again shortly.
+            {import.meta.env.DEV ? (
+              // Developer detail stays out of production: members should never
+              // see a backend vendor named on the sign-in screen.
+              <span className="mt-2 block font-mono text-xs opacity-80">
+                dev: missing {missingFirebaseConfig.join(', ')} in .env.local
+              </span>
+            ) : null}
           </InlineAlert>
         </div>
       ) : null}

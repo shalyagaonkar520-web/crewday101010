@@ -360,7 +360,7 @@ export default function AdminUsersPage() {
       <ConfirmDialog
         open={Boolean(deleteTarget)}
         title="Delete this member's personal data?"
-        description="Name, email, phone, photo and interests are removed and the profile is marked deleted. Their attendance history stays as an anonymous count. The Firebase sign-in itself must be removed from the Firebase console or by the member."
+        description="Name, email, phone, photo and interests are removed and the profile is marked deleted. Their attendance history stays as an anonymous count. Their sign-in account itself can only be removed from the authentication console, or by the member deleting their own account."
         confirmLabel="Delete personal data"
         loading={busy}
         onConfirm={() =>

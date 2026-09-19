@@ -45,6 +45,10 @@
         width: 120px; height: 4px; border-radius: 999px;
         background: #ffe3ed; overflow: hidden;
       }
+      #splash-error {
+        margin: 0; max-width: 300px; text-align: center;
+        font-size: 14px; line-height: 21px; color: #6480a1;
+      }
       #splash-bar i {
         display: block; width: 40%; height: 100%; border-radius: 999px;
         background: linear-gradient(90deg, #ff4d8d, #4a9eff);
@@ -56,6 +60,40 @@
         #splash svg, #splash-bar i { animation: none; }
       }
     </style>
+    <script>
+      // Safety nets for the splash, deliberately plain JS and outside the app
+      // bundle: if the bundle fails to download, fails to parse, or throws
+      // before React mounts, the splash must not sit there forever looking
+      // like "the app won't open". Show the problem instead.
+      (function () {
+        var splash = document.getElementById('splash');
+        var errorBox = document.getElementById('splash-error');
+        function show(message) {
+          if (!splash || splash.classList.contains('is-done')) return;
+          var bar = document.getElementById('splash-bar');
+          if (bar) bar.hidden = true;
+          if (errorBox) {
+            errorBox.textContent = message;
+            errorBox.hidden = false;
+          }
+        }
+        window.addEventListener('error', function (event) {
+          var target = event.target;
+          if (target && target.tagName === 'SCRIPT') {
+            show('Could not load the app. Check your connection and pull down to refresh.');
+          } else if (event.message) {
+            show('Something went wrong while starting CrewDay. Pull down to refresh.');
+          }
+        }, true);
+        window.addEventListener('unhandledrejection', function () {
+          show('Something went wrong while starting CrewDay. Pull down to refresh.');
+        });
+        // If React has not taken over in 8 seconds, stop pretending to load.
+        setTimeout(function () {
+          show('CrewDay is taking longer than usual. Check your connection and pull down to refresh.');
+        }, 8000);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
@@ -103,7 +141,14 @@
       </svg>
       <div id="splash-word"><span>CREW</span><span>DAY</span></div>
       <div id="splash-bar"><i></i></div>
+      <p id="splash-error" hidden></p>
     </div>
+    <noscript>
+      <p style="position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;
+                text-align:center;padding:24px;background:#fdf7fb;font-family:system-ui,sans-serif;color:#16273a;">
+        CrewDay needs JavaScript to run. Please enable it and reload.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

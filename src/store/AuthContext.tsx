@@ -42,7 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isFirebaseConfigured) {
       setLoading(false)
-      setError('Firebase is not configured. Add your project keys to .env.local.')
+      setError(
+        import.meta.env.DEV
+          ? 'Backend not configured — add your project keys to .env.local.'
+          : 'CrewDay is still being set up on this deployment. Please try again shortly.',
+      )
       return
     }
 
