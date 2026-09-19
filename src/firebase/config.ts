@@ -30,7 +30,26 @@ export const missingFirebaseConfig = REQUIRED_KEYS.filter((key) => !firebaseConf
 /** True when the app has enough config to talk to Firebase at all. */
 export const isFirebaseConfigured = missingFirebaseConfig.length === 0
 
-const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig)
+/**
+ * When the deployment has no `VITE_*` variables (a fresh Vercel project, say),
+ * `getAuth()` throws `auth/invalid-api-key` synchronously during module load.
+ * That happens before React mounts, so the user gets a blank page under a
+ * splash that never goes away — not the friendly "still being set up" banner
+ * that exists precisely for this case. Feeding the SDK a placeholder config
+ * lets initialisation succeed; `isFirebaseConfigured` stays false, the auth
+ * store reports the error, and every sign-in button is disabled.
+ */
+const effectiveConfig = isFirebaseConfigured
+  ? firebaseConfig
+  : {
+      ...firebaseConfig,
+      apiKey: firebaseConfig.apiKey || 'unconfigured',
+      authDomain: firebaseConfig.authDomain || 'unconfigured.firebaseapp.com',
+      projectId: firebaseConfig.projectId || 'unconfigured',
+      appId: firebaseConfig.appId || '1:0:web:unconfigured',
+    }
+
+const app: FirebaseApp = getApps().length ? getApp() : initializeApp(effectiveConfig)
 
 export const firebaseApp = app
 

@@ -42,3 +42,6 @@ public/favicon.svg
 public/icons.svg
 src/assets/hero.png
 src/assets/vite.svg
+
+# Local build used only to reproduce a deployment without env vars
+dist-noenv

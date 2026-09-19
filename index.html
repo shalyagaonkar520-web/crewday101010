@@ -66,9 +66,12 @@
       // before React mounts, the splash must not sit there forever looking
       // like "the app won't open". Show the problem instead.
       (function () {
-        var splash = document.getElementById('splash');
-        var errorBox = document.getElementById('splash-error');
+        // Looked up at call time: this script lives in <head> and runs before
+        // <body> is parsed, so resolving these eagerly here would yield null
+        // and silently disable the whole net (which is exactly what happened).
         function show(message) {
+          var splash = document.getElementById('splash');
+          var errorBox = document.getElementById('splash-error');
           if (!splash || splash.classList.contains('is-done')) return;
           var bar = document.getElementById('splash-bar');
           if (bar) bar.hidden = true;
