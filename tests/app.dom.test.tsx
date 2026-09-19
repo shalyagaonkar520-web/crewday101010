@@ -88,6 +88,7 @@ describe('app shell', () => {
     expect(screen.getByRole('button', { name: /continue with google/i })).toBeTruthy()
     expect(screen.getByLabelText(/email/i)).toBeTruthy()
     expect(screen.getByRole('button', { name: /^sign in$/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /continue as guest/i })).toBeTruthy()
   })
 
   it('renders the sign-up screen', async () => {

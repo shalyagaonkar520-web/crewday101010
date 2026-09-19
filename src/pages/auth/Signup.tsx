@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
 import { InlineAlert } from '@/components/ui/Feedback'
 import { signInWithGoogle, signUpWithEmail } from '@/services/authService'
+import { useAuth } from '@/hooks/useAuth'
 import { authErrorMessage, isEmail, passwordHint } from '@/utils/validation'
 import { isFirebaseConfigured } from '@/firebase/config'
 
 export default function SignupPage() {
   const navigate = useNavigate()
+  const { isGuest } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -61,8 +63,12 @@ export default function SignupPage() {
 
   return (
     <AuthLayout
-      title="Join CrewDay"
-      subtitle="Two minutes to set up. Then find your people."
+      title={isGuest ? 'Save your guest account' : 'Join CrewDay'}
+      subtitle={
+        isGuest
+          ? 'Add Google or an email and the tickets you have booked come with you.'
+          : 'Two minutes to set up. Then find your people.'
+      }
       footer={
         <>
           Already have an account?{' '}
@@ -143,7 +149,7 @@ export default function SignupPage() {
           loading={busy === 'email'}
           disabled={!isFirebaseConfigured || busy !== null}
         >
-          Create account
+          {isGuest ? 'Save my account' : 'Create account'}
         </Button>
 
         <p className="text-center text-xs leading-relaxed text-ink-500">

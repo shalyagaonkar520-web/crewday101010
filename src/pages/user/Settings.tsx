@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Trash2,
   UserPen,
+  UserPlus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -86,7 +87,7 @@ function SettingsRow({
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { user, profile } = useAuth()
+  const { user, profile, isGuest } = useAuth()
   const { success, error: toastError } = useToast()
 
   const [pushBusy, setPushBusy] = useState(false)
@@ -148,6 +149,14 @@ export default function SettingsPage() {
               title="Edit profile"
               description="Name, photo, city, interests and how you join"
             />
+            {isGuest ? (
+              <SettingsRow
+                to="/signup"
+                icon={<UserPlus size={17} />}
+                title="Save your account"
+                description="Add Google or an email so your tickets survive a new phone"
+              />
+            ) : null}
             {usesPasswordProvider(user) ? (
               <SettingsRow
                 icon={<Lock size={17} />}
@@ -264,6 +273,7 @@ export default function SettingsPage() {
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         needsPassword={usesPasswordProvider(user)}
+        isGuest={isGuest}
         onDeleted={() => navigate('/', { replace: true })}
       />
     </div>
@@ -394,11 +404,13 @@ function DeleteAccountModal({
   open,
   onClose,
   needsPassword,
+  isGuest = false,
   onDeleted,
 }: {
   open: boolean
   onClose: () => void
   needsPassword: boolean
+  isGuest?: boolean
   onDeleted: () => void
 }) {
   const { success } = useToast()
@@ -461,7 +473,9 @@ function DeleteAccountModal({
           />
         ) : (
           <p className="text-sm text-ink-600">
-            You will be asked to sign in with Google again to confirm.
+            {isGuest
+              ? 'Guest accounts are removed straight away — there is nothing to sign back into.'
+              : 'You will be asked to sign in with Google again to confirm.'}
           </p>
         )}
 

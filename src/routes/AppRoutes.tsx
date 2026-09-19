@@ -72,7 +72,7 @@ export function AppRoutes() {
         <Route
           path="/login"
           element={
-            <RedirectIfAuthenticated>
+            <RedirectIfAuthenticated allowGuests>
               <LoginPage />
             </RedirectIfAuthenticated>
           }
@@ -80,7 +80,7 @@ export function AppRoutes() {
         <Route
           path="/signup"
           element={
-            <RedirectIfAuthenticated>
+            <RedirectIfAuthenticated allowGuests>
               <SignupPage />
             </RedirectIfAuthenticated>
           }

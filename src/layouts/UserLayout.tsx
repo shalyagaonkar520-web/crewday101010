@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { AppHeader } from '@/components/layout/AppHeader'
 import { BottomNav } from '@/components/layout/BottomNav'
+import { GuestBanner } from '@/components/layout/GuestBanner'
 import { InlineAlert } from '@/components/ui/Feedback'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -27,6 +28,8 @@ export function UserLayout() {
       {/* Explore owns its own search box; showing the header one too gave that
           screen two search bars. */}
       <AppHeader showSearch={pathname === '/home'} />
+
+      <GuestBanner />
 
       {profile?.status === 'suspended' ? (
         <div className="mx-auto max-w-6xl px-4 pt-4">

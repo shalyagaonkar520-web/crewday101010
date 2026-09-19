@@ -2,10 +2,13 @@ import {
   createUserWithEmailAndPassword,
   deleteUser,
   EmailAuthProvider,
+  linkWithCredential,
+  linkWithPopup,
   reauthenticateWithCredential,
   reauthenticateWithPopup,
   sendEmailVerification,
   sendPasswordResetEmail,
+  signInAnonymously,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -14,7 +17,12 @@ import {
   type User,
 } from 'firebase/auth'
 import { auth, firebaseApp, googleProvider } from '@/firebase/config'
-import { anonymiseUserProfile, ensureUserProfile, getUserProfile } from '@/services/userService'
+import {
+  anonymiseUserProfile,
+  ensureUserProfile,
+  getUserProfile,
+  upgradeGuestProfile,
+} from '@/services/userService'
 import { cancelRegistration } from '@/services/registrationService'
 import { trackSync } from '@/services/analyticsService'
 import type { UserProfile } from '@/types'
@@ -42,11 +50,52 @@ function assertNotSuspended(profile: UserProfile | null): void {
   }
 }
 
+/**
+ * Google sign-in.
+ *
+ * If the current session is a guest, this *links* the Google identity to the
+ * existing anonymous account instead of signing in fresh — the uid stays the
+ * same, so every ticket the guest booked comes with them. If that Google
+ * account already belongs to a full member, linking is impossible; we sign
+ * into the existing account and say so, rather than silently losing anything.
+ */
 export async function signInWithGoogle(): Promise<UserProfile> {
+  const guest = auth.currentUser?.isAnonymous ? auth.currentUser : null
+
+  if (guest) {
+    try {
+      const linked = await linkWithPopup(guest, googleProvider)
+      await upgradeGuestProfile(linked.user.uid, {
+        name: linked.user.displayName,
+        email: linked.user.email,
+        photoURL: linked.user.photoURL,
+      })
+      const profile = await ensureUserProfile(linked.user)
+      trackSync('login_completed', { method: 'google', upgradedGuest: true })
+      return profile
+    } catch (caught) {
+      const code = (caught as { code?: string }).code
+      if (code !== 'auth/credential-already-in-use') throw caught
+      // Fall through: that Google account is already a member.
+    }
+  }
+
   const credential = await signInWithPopup(auth, googleProvider)
   const profile = await ensureUserProfile(credential.user)
   assertNotSuspended(profile)
   trackSync('login_completed', { method: 'google' })
+  return profile
+}
+
+/**
+ * Anonymous session. Enough to browse, register and hold a QR ticket on this
+ * device. `signInAnonymously` returns the existing anonymous user if there
+ * already is one, so tapping the button twice never creates two guests.
+ */
+export async function signInAsGuest(): Promise<UserProfile> {
+  const credential = await signInAnonymously(auth)
+  const profile = await ensureUserProfile(credential.user)
+  trackSync('login_completed', { method: 'guest' })
   return profile
 }
 
@@ -64,7 +113,14 @@ export async function signUpWithEmail(
   password: string,
 ): Promise<UserProfile> {
   trackSync('signup_started', { method: 'email' })
-  const credential = await createUserWithEmailAndPassword(auth, email.trim(), password)
+  const guest = auth.currentUser?.isAnonymous ? auth.currentUser : null
+
+  // A guest adding an email is an upgrade of the account they already have,
+  // not a new account — link, so their tickets survive.
+  const credential = guest
+    ? await linkWithCredential(guest, EmailAuthProvider.credential(email.trim(), password))
+    : await createUserWithEmailAndPassword(auth, email.trim(), password)
+  if (guest) await upgradeGuestProfile(credential.user.uid, { name: name.trim(), email: email.trim() })
 
   if (name.trim()) {
     await updateProfile(credential.user, { displayName: name.trim() })
@@ -130,6 +186,9 @@ export function usesPasswordProvider(user: User | null): boolean {
  * login to delete an account, and the flow differs per provider.
  */
 async function reauthenticate(user: User, password?: string): Promise<void> {
+  // Anonymous accounts have no credential to re-present; the session itself
+  // is the proof, and Firebase treats it as recent.
+  if (user.isAnonymous) return
   if (usesPasswordProvider(user)) {
     if (!user.email) throw new AuthError('auth/no-user', 'This account has no email address.')
     if (!password)

@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { FirebaseError } from 'firebase/app'
-import { Eye, EyeOff, Mail } from 'lucide-react'
+import { Eye, EyeOff, Mail, UserRound } from 'lucide-react'
 import { AuthLayout, GoogleIcon } from '@/layouts/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
 import { InlineAlert } from '@/components/ui/Feedback'
-import { signInWithEmail, signInWithGoogle } from '@/services/authService'
+import { signInAsGuest, signInWithEmail, signInWithGoogle } from '@/services/authService'
 import { authErrorMessage } from '@/utils/validation'
 import { isFirebaseConfigured, missingFirebaseConfig } from '@/firebase/config'
 
@@ -22,7 +22,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [busy, setBusy] = useState<'email' | 'google' | null>(null)
+  const [busy, setBusy] = useState<'email' | 'google' | 'guest' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const handleError = (caught: unknown) => {
@@ -51,6 +51,19 @@ export default function LoginPage() {
     try {
       await signInWithGoogle()
       navigate(redirectTo, { replace: true })
+    } catch (caught) {
+      handleError(caught)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const onGuest = async () => {
+    setError(null)
+    setBusy('guest')
+    try {
+      await signInAsGuest()
+      navigate('/home', { replace: true })
     } catch (caught) {
       handleError(caught)
     } finally {
@@ -155,6 +168,28 @@ export default function LoginPage() {
           Sign in
         </Button>
       </form>
+
+      <div className="my-6 flex items-center gap-3 text-xs font-semibold tracking-wide text-ink-400 uppercase">
+        <span className="h-px flex-1 bg-ink-200" />
+        or
+        <span className="h-px flex-1 bg-ink-200" />
+      </div>
+
+      <Button
+        type="button"
+        variant="ghost"
+        fullWidth
+        size="lg"
+        icon={<UserRound size={18} />}
+        loading={busy === 'guest'}
+        disabled={!isFirebaseConfigured || busy !== null}
+        onClick={() => void onGuest()}
+      >
+        Continue as guest
+      </Button>
+      <p className="mt-2 text-center text-xs text-ink-500">
+        Browse and book without an account. Tickets stay on this device until you save one.
+      </p>
     </AuthLayout>
   )
 }

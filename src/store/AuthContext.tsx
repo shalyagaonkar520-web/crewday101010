@@ -18,6 +18,8 @@ export interface AuthState {
   isAuthenticated: boolean
   isAdmin: boolean
   isSuspended: boolean
+  /** Anonymous session — browsing and booking allowed, no persistent identity. */
+  isGuest: boolean
   needsOnboarding: boolean
   emailVerified: boolean
   refreshProfile: () => Promise<void>
@@ -101,11 +103,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Light-touch "active user" signal for the admin dashboard, at most once a day.
+  // Light-touch "active user" signal for the admin dashboard, at most once a
+  // day. `ensureUserProfile` already stamps it on every sign-in, so this only
+  // matters for a tab left open across days.
+  //
+  // Two guards keep it from running away. A pending `serverTimestamp()` reads
+  // back as `null` in the local snapshot, which used to look like "never
+  // active" and fire another write on every snapshot — a loop that burned
+  // through the daily write quota. So: never bump while the value is null,
+  // and never bump more than once per user per session.
+  const bumpedActiveFor = useRef<string | null>(null)
   useEffect(() => {
     if (!user || !profile) return
-    const lastActive = profile.lastActiveAt?.toDate?.().getTime() ?? 0
-    if (Date.now() - lastActive < 86_400_000) return
+    if (bumpedActiveFor.current === user.uid) return
+    const lastActive = profile.lastActiveAt?.toDate?.()
+    if (!lastActive) return
+    if (Date.now() - lastActive.getTime() < 86_400_000) return
+    bumpedActiveFor.current = user.uid
     void updateDoc(doc(db, COLLECTIONS.users, user.uid), { lastActiveAt: serverTimestamp() }).catch(
       () => undefined,
     )
@@ -120,7 +134,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(user),
       isAdmin: profile?.role === 'admin' && profile.status === 'active',
       isSuspended: profile?.status === 'suspended',
-      needsOnboarding: Boolean(user && profile && !profile.onboardingCompleted),
+      isGuest: Boolean(user?.isAnonymous),
+      // Guests skip the interest questionnaire; it exists to personalise a
+      // profile they have not committed to keeping.
+      needsOnboarding: Boolean(user && profile && !profile.onboardingCompleted && !user.isAnonymous),
       emailVerified: Boolean(user?.emailVerified),
       refreshProfile,
     }),

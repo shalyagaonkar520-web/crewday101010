@@ -128,7 +128,7 @@ function MyRequests({ requests, loading }: { requests: EventRequest[]; loading: 
  */
 export default function SuggestEventPage() {
   const navigate = useNavigate()
-  const { user, profile } = useAuth()
+  const { user, profile, isGuest } = useAuth()
   const { success } = useToast()
 
   const [draft, setDraft] = useState<EventRequestDraft>(emptyDraft)
@@ -198,6 +198,30 @@ export default function SuggestEventPage() {
     { value: 'audience', emoji: '👀', label: 'Audience' },
     { value: 'both', emoji: '🤝', label: 'Both' },
   ]
+
+  // An organiser has to be able to reach whoever proposed an event. A guest
+  // has no persistent identity to reach, so the door is a save-your-account
+  // prompt rather than a form that would go nowhere.
+  if (isGuest) {
+    return (
+      <div className="mx-auto max-w-md pt-6 text-center">
+        <span className="text-5xl" aria-hidden>💡</span>
+        <h1 className="mt-4 font-display text-2xl font-bold text-ink-900">Got an event idea?</h1>
+        <p className="mt-2 text-ink-500">
+          Save your account first so the organisers can get back to you about it. Your booked
+          tickets come with you.
+        </p>
+        <div className="mt-6 space-y-3">
+          <LinkButton to="/signup" fullWidth size="lg">
+            Save my account
+          </LinkButton>
+          <LinkButton to="/explore" fullWidth variant="ghost">
+            Keep browsing
+          </LinkButton>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-2xl">

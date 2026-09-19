@@ -180,6 +180,10 @@ const asMember = () => testEnv.authenticatedContext(MEMBER).firestore()
 const asOther = () => testEnv.authenticatedContext(OTHER).firestore()
 const asAdmin = () => testEnv.authenticatedContext(ADMIN).firestore()
 const asGuest = () => testEnv.unauthenticatedContext().firestore()
+// An *anonymous* Firebase session — signed in, but with no email or provider.
+const ANON = 'anon-uid'
+const asAnon = () =>
+  testEnv.authenticatedContext(ANON, { firebase: { sign_in_provider: 'anonymous' } }).firestore()
 
 /* -------------------------------------------------------------------------- */
 
@@ -864,6 +868,57 @@ describe('event requests', () => {
 
     it('blocks a member from deleting it', async () => {
       await assertFails(deleteDoc(doc(asMember(), 'eventRequests', requestId)))
+    })
+  })
+})
+
+describe('guest (anonymous) accounts', () => {
+  it('lets a guest create their own profile', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asAnon(), 'users', ANON),
+        baseUser(ANON, { name: 'Guest', email: '', isGuest: true, onboardingCompleted: false }),
+      ),
+    )
+  })
+
+  describe('with a guest profile', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(
+          doc(context.firestore(), 'users', ANON),
+          baseUser(ANON, { name: 'Guest', email: '', isGuest: true }),
+        )
+      })
+    })
+
+    it('lets a guest register for an event', async () => {
+      await assertSucceeds(
+        setDoc(
+          doc(asAnon(), 'registrations', `${EVENT}__${ANON}`),
+          baseRegistration(ANON, { email: 'typed@example.com' }),
+        ),
+      )
+    })
+
+    it('lets a guest read their own ticket', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(
+          doc(context.firestore(), 'registrations', `${EVENT}__${ANON}`),
+          baseRegistration(ANON),
+        )
+      })
+      await assertSucceeds(getDoc(doc(asAnon(), 'registrations', `${EVENT}__${ANON}`)))
+    })
+
+    it('blocks a guest from proposing an event', async () => {
+      await assertFails(setDoc(doc(asAnon(), 'eventRequests', 'guest-req'), baseRequest(ANON)))
+    })
+
+    it('still lets a full member propose an event', async () => {
+      await assertSucceeds(
+        setDoc(doc(asMember(), 'eventRequests', 'member-req'), baseRequest(MEMBER)),
+      )
     })
   })
 })

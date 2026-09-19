@@ -50,6 +50,7 @@ export function mapUserProfile(snapshot: DocumentSnapshot<DocumentData>): UserPr
     participationType: (data.participationType as ParticipationType) ?? 'participant',
     role: data.role === 'admin' ? 'admin' : 'user',
     status: (data.status as UserStatus) ?? 'active',
+    isGuest: Boolean(data.isGuest),
     onboardingCompleted: Boolean(data.onboardingCompleted),
     notificationPrefs: { ...DEFAULT_NOTIFICATION_PREFS, ...(data.notificationPrefs ?? {}) },
     privacyPrefs: { ...DEFAULT_PRIVACY_PREFS, ...(data.privacyPrefs ?? {}) },
@@ -99,7 +100,8 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
 
   const profile = {
     uid: user.uid,
-    name: user.displayName ?? '',
+    // A guest has no display name; give the greeting something to say.
+    name: user.displayName ?? (user.isAnonymous ? 'Guest' : ''),
     email: user.email ?? '',
     phone: user.phoneNumber ? normalisePhone(user.phoneNumber) : '',
     photoURL: user.photoURL ?? '',
@@ -109,6 +111,7 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
     participationType: 'participant' as ParticipationType,
     role: 'user' as const,
     status: 'active' as const,
+    isGuest: user.isAnonymous,
     onboardingCompleted: false,
     notificationPrefs: DEFAULT_NOTIFICATION_PREFS,
     privacyPrefs: DEFAULT_PRIVACY_PREFS,
@@ -175,6 +178,22 @@ export async function updateUserProfile(uid: string, patch: ProfilePatch): Promi
   if (patch.notificationPrefs !== undefined) clean.notificationPrefs = patch.notificationPrefs
   if (patch.privacyPrefs !== undefined) clean.privacyPrefs = patch.privacyPrefs
   await updateDoc(userRef(uid), clean)
+}
+
+/**
+ * Called after an anonymous account is linked to Google or an email. The uid
+ * is unchanged (that is the whole point of linking — tickets survive), so this
+ * is a plain update of the identity fields.
+ */
+export async function upgradeGuestProfile(
+  uid: string,
+  identity: { name?: string | null; email?: string | null; photoURL?: string | null },
+): Promise<void> {
+  const patch: Record<string, unknown> = { isGuest: false, updatedAt: serverTimestamp() }
+  if (identity.name) patch.name = sanitiseText(identity.name, 80)
+  if (identity.email) patch.email = identity.email
+  if (identity.photoURL) patch.photoURL = identity.photoURL
+  await updateDoc(userRef(uid), patch)
 }
 
 /* --------------------------------- Admin --------------------------------- */

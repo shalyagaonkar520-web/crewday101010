@@ -48,6 +48,8 @@ export interface UserProfile {
   participationType: ParticipationType
   role: UserRole
   status: UserStatus
+  /** Signed in anonymously. Tickets live on this device until upgraded. */
+  isGuest: boolean
   onboardingCompleted: boolean
   notificationPrefs: NotificationPreferences
   privacyPrefs: PrivacyPreferences

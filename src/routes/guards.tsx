@@ -55,10 +55,23 @@ export function RequireAdmin({ children }: { children?: ReactNode }) {
   return <>{children ?? <Outlet />}</>
 }
 
-/** Keeps signed-in people away from the login/landing screens. */
-export function RedirectIfAuthenticated({ children }: { children: ReactNode }) {
-  const { isAuthenticated, loading, needsOnboarding } = useAuth()
+/**
+ * Keeps signed-in people away from the login/landing screens.
+ *
+ * `allowGuests` lets an anonymous (guest) session through — the login and
+ * sign-up screens double as the place a guest saves a real account, so they
+ * must stay reachable. Without it a guest is treated like any other member.
+ */
+export function RedirectIfAuthenticated({
+  children,
+  allowGuests = false,
+}: {
+  children: ReactNode
+  allowGuests?: boolean
+}) {
+  const { isAuthenticated, isGuest, loading, needsOnboarding } = useAuth()
   if (loading) return <LoadingScreen />
-  if (isAuthenticated) return <Navigate to={needsOnboarding ? '/onboarding' : '/home'} replace />
+  if (isAuthenticated && !(allowGuests && isGuest))
+    return <Navigate to={needsOnboarding ? '/onboarding' : '/home'} replace />
   return <>{children}</>
 }

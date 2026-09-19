@@ -154,6 +154,9 @@ service cloud.firestore {
         || (isSignedIn() && resource.data.requestedBy == uid());
 
       allow create: if isActiveMember()
+        // Guests may browse and book, but an organiser needs a reachable
+        // person behind a proposal. Enforced here as well as in the UI.
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
         && request.resource.data.requestedBy == uid()
         && request.resource.data.status == 'pending'
         // Cannot arrive pre-approved or pointing at an existing event.
