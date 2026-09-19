@@ -1,0 +1,28 @@
+rules_version = '2';
+
+// =============================================================================
+// CrewDay — DEVELOPMENT rules. WIDE OPEN. NOT FOR A DEPLOYED APP.
+//
+// Anyone who has the Firebase web API key — which ships inside the JavaScript
+// bundle and is readable by anyone who opens the site — can read and write
+// every document in this database while these rules are live. That includes
+// every member's email address and phone number, every ticket, and the `role`
+// field that grants organiser access.
+//
+// Use these only while the app runs on localhost. Switch back before the app
+// is reachable at a public URL:
+//
+//     npm run rules:prod
+//
+// The date below makes that failure mode survivable: these rules stop working
+// on their own after 18 October 2026, rather than quietly staying open for a
+// year. Bump the date if you need longer — deliberately, not by accident.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.time < timestamp.date(2026, 10, 18);
+    }
+  }
+}

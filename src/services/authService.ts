@@ -1,0 +1,195 @@
+import {
+  createUserWithEmailAndPassword,
+  deleteUser,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  reauthenticateWithPopup,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  updatePassword,
+  updateProfile,
+  type User,
+} from 'firebase/auth'
+import { auth, firebaseApp, googleProvider } from '@/firebase/config'
+import { anonymiseUserProfile, ensureUserProfile, getUserProfile } from '@/services/userService'
+import { cancelRegistration } from '@/services/registrationService'
+import { trackSync } from '@/services/analyticsService'
+import type { UserProfile } from '@/types'
+
+export class AuthError extends Error {
+  code: string
+  constructor(code: string, message: string) {
+    super(message)
+    this.code = code
+    this.name = 'AuthError'
+  }
+}
+
+function assertNotSuspended(profile: UserProfile | null): void {
+  if (profile?.status === 'suspended') {
+    void signOut(auth)
+    throw new AuthError(
+      'auth/user-disabled',
+      'This account has been suspended. Contact support if you think this is a mistake.',
+    )
+  }
+  if (profile?.status === 'deleted') {
+    void signOut(auth)
+    throw new AuthError('auth/user-disabled', 'This account has been deleted.')
+  }
+}
+
+export async function signInWithGoogle(): Promise<UserProfile> {
+  const credential = await signInWithPopup(auth, googleProvider)
+  const profile = await ensureUserProfile(credential.user)
+  assertNotSuspended(profile)
+  trackSync('login_completed', { method: 'google' })
+  return profile
+}
+
+export async function signInWithEmail(email: string, password: string): Promise<UserProfile> {
+  const credential = await signInWithEmailAndPassword(auth, email.trim(), password)
+  const profile = await ensureUserProfile(credential.user)
+  assertNotSuspended(profile)
+  trackSync('login_completed', { method: 'email' })
+  return profile
+}
+
+export async function signUpWithEmail(
+  name: string,
+  email: string,
+  password: string,
+): Promise<UserProfile> {
+  trackSync('signup_started', { method: 'email' })
+  const credential = await createUserWithEmailAndPassword(auth, email.trim(), password)
+
+  if (name.trim()) {
+    await updateProfile(credential.user, { displayName: name.trim() })
+    await credential.user.reload()
+  }
+
+  // Non-blocking: a failed verification mail must not strand a new account.
+  void sendEmailVerification(credential.user).catch(() => undefined)
+
+  const profile = await ensureUserProfile(credential.user)
+  trackSync('signup_completed', { method: 'email' })
+  return profile
+}
+
+export async function resendVerificationEmail(): Promise<void> {
+  const user = auth.currentUser
+  if (!user) throw new AuthError('auth/no-user', 'You are not signed in.')
+  await sendEmailVerification(user)
+}
+
+/**
+ * Send a password reset.
+ *
+ * Prefers the `sendPasswordReset` Cloud Function, which delivers a branded
+ * email through our own SMTP. If that function is not deployed (or the project
+ * is on the Spark plan), this falls back to Firebase's built-in sender so the
+ * feature still works — a reset is too important to depend on one path.
+ */
+export async function sendResetEmail(email: string): Promise<void> {
+  const address = email.trim()
+  try {
+    const { getFunctions, httpsCallable } = await import('firebase/functions')
+    const call = httpsCallable<{ email: string }, { ok: boolean }>(
+      getFunctions(firebaseApp, 'asia-south1'),
+      'sendPasswordReset',
+    )
+    await call({ email: address })
+    return
+  } catch {
+    // Not deployed, region mismatch, or SMTP unconfigured — use Firebase's own.
+  }
+  await sendPasswordResetEmail(auth, address)
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const user = auth.currentUser
+  if (!user?.email) throw new AuthError('auth/no-user', 'You are not signed in with an email account.')
+  await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, currentPassword))
+  await updatePassword(user, newPassword)
+}
+
+export async function logout(): Promise<void> {
+  await signOut(auth)
+}
+
+/** True when the signed-in account uses email/password rather than Google. */
+export function usesPasswordProvider(user: User | null): boolean {
+  return Boolean(user?.providerData.some((provider) => provider.providerId === 'password'))
+}
+
+/**
+ * Re-authenticate before a destructive action. Firebase requires a recent
+ * login to delete an account, and the flow differs per provider.
+ */
+async function reauthenticate(user: User, password?: string): Promise<void> {
+  if (usesPasswordProvider(user)) {
+    if (!user.email) throw new AuthError('auth/no-user', 'This account has no email address.')
+    if (!password)
+      throw new AuthError('auth/requires-recent-login', 'Enter your password to continue.')
+    await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password))
+    return
+  }
+  await reauthenticateWithPopup(user, googleProvider)
+}
+
+export interface DeleteAccountResult {
+  cancelledRegistrations: number
+}
+
+/**
+ * Delete the signed-in account.
+ *
+ * Order matters. Upcoming registrations are released first so seats go back to
+ * other people, then the profile is anonymised (registration history stays
+ * countable for the organiser, stripped of personal data), and only then is
+ * the auth account removed — if that last step fails, the user can retry
+ * without having half-deleted state.
+ */
+export async function deleteAccount(password?: string): Promise<DeleteAccountResult> {
+  const user = auth.currentUser
+  if (!user) throw new AuthError('auth/no-user', 'You are not signed in.')
+
+  await reauthenticate(user, password)
+
+  const { collection, getDocs, query, where } = await import('firebase/firestore')
+  const { COLLECTIONS, db } = await import('@/firebase/config')
+  const { todayISO } = await import('@/utils/format')
+
+  const upcoming = await getDocs(
+    query(
+      collection(db, COLLECTIONS.registrations),
+      where('userId', '==', user.uid),
+      where('registrationStatus', 'in', ['confirmed', 'pending_payment']),
+      where('eventDate', '>=', todayISO()),
+    ),
+  )
+
+  let cancelledRegistrations = 0
+  for (const entry of upcoming.docs) {
+    try {
+      await cancelRegistration(entry.id, 'Account deleted')
+      cancelledRegistrations += 1
+    } catch {
+      // Already checked in or otherwise locked: leave the record alone.
+    }
+  }
+
+  await anonymiseUserProfile(user.uid)
+  await deleteUser(user)
+
+  return { cancelledRegistrations }
+}
+
+/** Fetch the freshest role straight from Firestore (used by the admin gate). */
+export async function isAdminUser(uid: string): Promise<boolean> {
+  const profile = await getUserProfile(uid)
+  return profile?.role === 'admin' && profile.status === 'active'
+}

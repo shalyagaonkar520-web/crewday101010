@@ -1,0 +1,20 @@
+rules_version = '2';
+
+// =============================================================================
+// CrewDay — DEVELOPMENT Storage rules. WIDE OPEN. NOT FOR A DEPLOYED APP.
+//
+// Anyone can upload to and overwrite any path in this bucket, including other
+// people's profile photos, and there is no file size or type limit. Storage is
+// billed by egress, so an open bucket is also a billing risk.
+//
+// Switch back with `npm run rules:prod` before the app is publicly reachable.
+// Expires on its own after 18 October 2026.
+// =============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if request.time < timestamp.date(2026, 10, 18);
+    }
+  }
+}

@@ -1,0 +1,353 @@
+rules_version = '2';
+
+// =============================================================================
+// CrewDay — Cloud Firestore Security Rules
+//
+// These rules, not the React router, are the security boundary. A hand-typed
+// /admin URL, a stolen registration id or a crafted SDK call all end here.
+//
+// Principles:
+//   1. Nobody can grant themselves `role: admin` — only an existing admin (or
+//      the Admin SDK) can write that field.
+//   2. Prices, attendance and check-in state are never writable by the
+//      attendee; the server copy of the event document is the source of truth.
+//   3. Members can only ever read their own profile, registrations and
+//      notifications.
+//   4. Capacity is enforced here as well as in the client transaction, so an
+//      event can never be oversold by a direct API call.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ----------------------------- Helpers ------------------------------ */
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function userData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    function userExists(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && userExists(uid())
+        && userData(uid()).role == 'admin'
+        && userData(uid()).status == 'active';
+    }
+
+    // Signed in, with a profile that has not been suspended or deleted.
+    function isActiveMember() {
+      return isSignedIn() && userExists(uid()) && userData(uid()).status == 'active';
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && uid() == userId;
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // Documents keyed `{parentId}__{uid}` are read by their owner before they
+    // exist ("have I already registered?"). `resource` is null for a missing
+    // document, so a rule that dereferences it raises an evaluation error and
+    // denies instead of returning an empty snapshot. This allows that one
+    // case, and only for ids that end in the caller's own uid.
+    function isOwnMissingDoc(docId) {
+      return isSignedIn() && resource == null && docId.matches('.*__' + uid());
+    }
+
+    function eventData(eventId) {
+      return get(/databases/$(database)/documents/events/$(eventId)).data;
+    }
+
+    /* ------------------------------ Users ------------------------------- */
+
+    match /users/{userId} {
+      // A member reads only their own profile. Admins can read any profile
+      // (needed for the user table and the attendee list).
+      allow get, list: if isOwner(userId) || isAdmin();
+
+      // Sign-up. The client picks none of the privileged fields: role is
+      // pinned to 'user', status to 'active', and the counters start at zero.
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'user'
+        && request.resource.data.status == 'active'
+        && request.resource.data.eventsRegistered == 0
+        && request.resource.data.eventsAttended == 0
+        && request.resource.data.onboardingCompleted == false;
+
+      // Self-service edits. `role`, `status` and `uid` must be untouched, so
+      // privilege escalation is impossible from the client.
+      allow update: if isAdmin()
+        || (
+          isOwner(userId)
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.status == resource.data.status
+        );
+
+      // Deletion is an anonymising update (see `anonymiseUserProfile`), which
+      // keeps organiser attendance counts intact. Hard deletes are admin-only.
+      allow delete: if isAdmin();
+    }
+
+    /* ------------------------------ Events ------------------------------ */
+
+    function onlyRegistrationCounters() {
+      return changedKeys().hasOnly([
+        'registeredCount', 'participantCount', 'audienceCount', 'waitlistCount', 'updatedAt'
+      ]);
+    }
+
+    function withinOne(before, after) {
+      return after >= before - 1 && after <= before + 1;
+    }
+
+    // A member registering or cancelling nudges the denormalised counters by
+    // one. Everything else on the event — price, capacity, date, status — stays
+    // admin-only, and the capacity ceiling is enforced right here.
+    function isCounterNudge() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return onlyRegistrationCounters()
+        && after.registeredCount >= 0
+        && after.registeredCount <= before.capacity
+        && after.participantCount >= 0
+        && after.audienceCount >= 0
+        && after.waitlistCount >= 0
+        && withinOne(before.registeredCount, after.registeredCount)
+        && withinOne(before.participantCount, after.participantCount)
+        && withinOne(before.audienceCount, after.audienceCount)
+        && withinOne(before.waitlistCount, after.waitlistCount);
+    }
+
+    match /events/{eventId} {
+      // Drafts are invisible to everyone but organisers. Published events are
+      // readable while signed out so the landing page can show real events.
+      allow get, list: if isAdmin() || resource.data.status != 'draft';
+
+      allow create, delete: if isAdmin();
+
+      allow update: if isAdmin() || (isActiveMember() && isCounterNudge());
+    }
+
+    /* ---------------------------- Event requests ------------------------ */
+
+    // A member proposing an event. This is intentionally NOT the `events`
+    // collection: members get write access here, and an organiser copies an
+    // approved proposal across. Price, status and capacity on a real event
+    // therefore stay unreachable from a member's credentials.
+    match /eventRequests/{requestId} {
+      allow get, list: if isAdmin()
+        || (isSignedIn() && resource.data.requestedBy == uid());
+
+      allow create: if isActiveMember()
+        && request.resource.data.requestedBy == uid()
+        && request.resource.data.status == 'pending'
+        // Cannot arrive pre-approved or pointing at an existing event.
+        && request.resource.data.createdEventId == ''
+        && request.resource.data.reviewedBy == ''
+        && request.resource.data.reviewNote == ''
+        && request.resource.data.capacity >= 1
+        && request.resource.data.price >= 0;
+
+      allow update: if isAdmin()
+        // The requester may only withdraw their own, and only while pending.
+        || (
+          isSignedIn()
+          && resource.data.requestedBy == uid()
+          && resource.data.status == 'pending'
+          && changedKeys().hasOnly(['status', 'updatedAt'])
+          && request.resource.data.status == 'withdrawn'
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    /* --------------------------- Registrations -------------------------- */
+
+    function registrationMatchesEvent(data, registrationId) {
+      let event = eventData(data.eventId);
+      return
+        // One seat per person, enforced by a deterministic document id.
+        registrationId == data.eventId + '__' + uid()
+        && data.userId == uid()
+        // Price and currency are copied from the event — never from the client.
+        && data.price == event.price
+        && data.currency == event.currency
+        // Free events confirm immediately; paid events must wait for payment.
+        && data.registrationStatus == (event.price <= 0 ? 'confirmed' : 'pending_payment')
+        && data.paymentStatus == (event.price <= 0 ? 'not_required' : 'pending')
+        // Attendance can only ever be set by an organiser.
+        && data.attendanceStatus == 'not_checked_in'
+        && data.checkInTime == null
+        && data.checkedInBy == ''
+        // The event has to actually be accepting registrations.
+        && event.status == 'open'
+        && event.registeredCount < event.capacity
+        // The chosen role must be one the event accepts.
+        && (event.eventTypes.hasAny(['both']) || event.eventTypes.hasAny([data.participationType]));
+    }
+
+    // A member may cancel their own seat, and nothing else.
+    function isSelfCancellation() {
+      return changedKeys().hasOnly([
+          'registrationStatus', 'cancelledAt', 'cancelledReason', 'qrToken', 'updatedAt'
+        ])
+        && request.resource.data.registrationStatus == 'cancelled'
+        && resource.data.attendanceStatus != 'checked_in';
+    }
+
+    match /registrations/{registrationId} {
+      allow get, list: if isAdmin()
+        || (isSignedIn() && resource != null && resource.data.userId == uid())
+        || isOwnMissingDoc(registrationId);
+
+      allow create: if isActiveMember()
+        && registrationMatchesEvent(request.resource.data, registrationId);
+
+      allow update: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.userId == uid()
+          && (
+            isSelfCancellation()
+            // Re-registering after cancelling rewrites the same document.
+            || (
+              resource.data.registrationStatus == 'cancelled'
+              && isActiveMember()
+              && registrationMatchesEvent(request.resource.data, registrationId)
+            )
+          )
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    /* ------------------------------ Waitlist ---------------------------- */
+
+    match /waitlists/{waitlistId} {
+      allow get, list: if isAdmin()
+        || (isSignedIn() && resource != null && resource.data.userId == uid())
+        || isOwnMissingDoc(waitlistId);
+
+      allow create: if isActiveMember()
+        && waitlistId == request.resource.data.eventId + '__' + uid()
+        && request.resource.data.userId == uid()
+        && request.resource.data.status == 'waiting';
+
+      allow update: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.userId == uid()
+          && changedKeys().hasOnly(['status'])
+          && request.resource.data.status == 'left'
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    /* ----------------------------- Interests ---------------------------- */
+
+    match /interests/{interestId} {
+      // Public so onboarding works the moment someone signs up.
+      allow get, list: if true;
+
+      // Members may add their own interest; it is flagged for admin curation.
+      allow create: if isAdmin()
+        || (
+          isActiveMember()
+          && request.resource.data.custom == true
+          && request.resource.data.enabled == true
+          && request.resource.data.usageCount == 0
+          && request.resource.data.createdBy == uid()
+        );
+
+      // Members can only bump the popularity counter.
+      allow update: if isAdmin()
+        || (isActiveMember() && changedKeys().hasOnly(['usageCount']));
+
+      allow delete: if isAdmin();
+    }
+
+    /* --------------------------- Notifications -------------------------- */
+
+    match /notifications/{notificationId} {
+      allow get, list: if isSignedIn() && resource.data.userId == uid();
+
+      // Admins fan out event updates; a member may only write their own
+      // registration confirmation.
+      allow create: if isAdmin()
+        || (isSignedIn() && request.resource.data.userId == uid()
+            && request.resource.data.read == false);
+
+      // The only thing a member changes is the read flag.
+      allow update: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.userId == uid()
+          && changedKeys().hasOnly(['read'])
+        );
+
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == uid());
+    }
+
+    /* ------------------------------ Feedback ---------------------------- */
+
+    match /feedback/{feedbackId} {
+      allow get, list: if isAdmin()
+        || (isSignedIn() && resource != null && resource.data.userId == uid())
+        || isOwnMissingDoc(feedbackId);
+
+      allow create, update: if isAdmin()
+        || (
+          isActiveMember()
+          && feedbackId == request.resource.data.eventId + '__' + uid()
+          && request.resource.data.userId == uid()
+          && request.resource.data.rating >= 1
+          && request.resource.data.rating <= 5
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    /* ------------------------------ Reports ----------------------------- */
+
+    match /reports/{reportId} {
+      allow get, list: if isAdmin();
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId == uid()
+        && request.resource.data.status == 'open';
+
+      allow update, delete: if isAdmin();
+    }
+
+    /* ------------------------------ Settings ---------------------------- */
+
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    /* --------------------------- Default deny --------------------------- */
+
+    // Anything not matched above is denied, including future collections that
+    // somebody forgets to write rules for.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
