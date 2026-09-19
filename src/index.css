@@ -1,0 +1,227 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   CrewDay design tokens
+
+   Soft, friendly, pastel. A near-white canvas washed with pink and blue, deep
+   navy type for contrast, and one hot pink that is reserved for the primary
+   action on a screen so it always reads as "tap this".
+--------------------------------------------------------------------------- */
+@theme {
+  --font-display: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+
+  /* Ink — deep navy, used for all text and the admin chrome. */
+  --color-ink-50: #f7fafd;
+  --color-ink-100: #eef4fa;
+  --color-ink-200: #dbe6f2;
+  --color-ink-300: #b6c9de;
+  --color-ink-400: #8aa3c0;
+  --color-ink-500: #6480a1;
+  --color-ink-600: #4a6383;
+  --color-ink-700: #374d68;
+  --color-ink-800: #26374d;
+  --color-ink-900: #16273a;
+  --color-ink-950: #0e1b2b;
+
+  /* Brand — the hot pink call to action. */
+  --color-brand-50: #fff1f6;
+  --color-brand-100: #ffe3ed;
+  --color-brand-200: #ffc8dc;
+  --color-brand-300: #ff9fc1;
+  --color-brand-400: #ff6ba1;
+  --color-brand-500: #ff4d8d;
+  --color-brand-600: #f62d76;
+  --color-brand-700: #d81a5e;
+  --color-brand-800: #b3174e;
+  --color-brand-900: #931844;
+
+  /* Sky — the blue half of the brand gradient, for secondary accents. */
+  --color-sky-50: #eff7ff;
+  --color-sky-100: #dcedfe;
+  --color-sky-200: #c0e0fd;
+  --color-sky-300: #94cdfb;
+  --color-sky-400: #61b2f7;
+  --color-sky-500: #4a9eff;
+  --color-sky-600: #2b7fe8;
+  --color-sky-700: #2267c4;
+  --color-sky-800: #22559f;
+  --color-sky-900: #21497e;
+
+  /* Grape — lavender, for tertiary tiles. */
+  --color-grape-50: #f6f3ff;
+  --color-grape-100: #ede9fe;
+  --color-grape-200: #ddd6fe;
+  --color-grape-300: #c4b5fd;
+  --color-grape-400: #a78bfa;
+  --color-grape-500: #8b5cf6;
+  --color-grape-600: #7c3aed;
+
+  --color-mint-50: #ecfdf5;
+  --color-mint-100: #d1fae5;
+  --color-mint-400: #34d399;
+  --color-mint-500: #10b981;
+  --color-mint-600: #059669;
+
+  /* Sunset — warm rose, reserved for destructive and error states. */
+  --color-sunset-50: #fff1f2;
+  --color-sunset-100: #ffe4e6;
+  --color-sunset-200: #fecdd3;
+  --color-sunset-300: #fda4af;
+  --color-sunset-400: #fb7185;
+  --color-sunset-500: #f43f5e;
+  --color-sunset-600: #e11d48;
+  --color-sunset-700: #be123c;
+  --color-sunset-800: #9f1239;
+  --color-sunset-900: #881337;
+
+  --radius-card: 1.5rem;
+
+  /* Shadows are wide and faint — the design reads as soft, not layered. */
+  --shadow-soft: 0 1px 2px rgb(22 39 58 / 0.04), 0 10px 26px -14px rgb(22 39 58 / 0.14);
+  --shadow-lift: 0 2px 6px rgb(22 39 58 / 0.05), 0 20px 44px -20px rgb(22 39 58 / 0.22);
+  --shadow-pink: 0 10px 26px -10px rgb(255 77 141 / 0.55);
+
+  --animate-fade-up: fade-up 0.35s ease-out both;
+  --animate-fade-in: fade-in 0.25s ease-out both;
+  --animate-pop: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* Shared by the pre-React splash and the in-app loading screen. */
+@keyframes loading-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(360%);
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    color: var(--color-ink-900);
+    /* Warm off-white base so the blooms have something to sit on. */
+    background-color: #fdf7fb;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
+
+  /*
+   * The washed canvas lives on its own fixed layer rather than on
+   * `body { background-attachment: fixed }`.
+   *
+   * That property repaints the entire background on every scroll frame, which
+   * is the single worst thing you can do to scrolling on a phone. As a fixed
+   * element this is promoted to its own compositor layer and painted once.
+   */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      /* Four soft blooms in the logo's own colours — pink, blue, lavender —
+         placed at the corners so no single one dominates the reading area. */
+      radial-gradient(58% 46% at 104% 0%, rgb(74 158 255 / 0.26) 0%, transparent 62%),
+      radial-gradient(54% 42% at -6% 6%, rgb(255 107 161 / 0.26) 0%, transparent 60%),
+      radial-gradient(62% 38% at 88% 96%, rgb(167 139 250 / 0.22) 0%, transparent 62%),
+      radial-gradient(58% 36% at 6% 92%, rgb(255 159 193 / 0.2) 0%, transparent 60%);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Opt-in touch target floor. Applying this to every `button` silently
+     stretched small controls — pagination dots, icon buttons — into slabs. */
+  @media (pointer: coarse) {
+    [data-touch] {
+      min-height: 44px;
+    }
+  }
+
+  /* Stop iOS zooming the page when a text field is focused. */
+  @media (max-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* The pink → blue wordmark gradient used by the logo. */
+@utility text-brand-gradient {
+  background-image: linear-gradient(100deg, var(--color-brand-500), var(--color-sky-500));
+  background-clip: text;
+  color: transparent;
+}

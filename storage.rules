@@ -1,0 +1,46 @@
+rules_version = '2';
+
+// =============================================================================
+// CrewDay — Cloud Storage Security Rules
+//
+// Event images are public (they are shown on the landing page to signed-out
+// visitors) but only organisers can write them. Profile photos are scoped to
+// the folder that belongs to the signed-in user.
+// =============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'active';
+    }
+
+    function isReasonableImage() {
+      return request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /events/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isReasonableImage();
+    }
+
+    match /avatars/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == userId && isReasonableImage();
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Everything else is closed.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

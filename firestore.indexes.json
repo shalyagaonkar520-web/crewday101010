@@ -1,0 +1,451 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startTime",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekday",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startTime",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "category",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startTime",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "city",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startTime",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "isFree",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startTime",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchTokens",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startTime",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "featured",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "registrations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "eventDate",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "registrations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "registrationStatus",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "eventDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "registrations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "eventId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "registeredAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "registrations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "eventId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "registrationStatus",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "registeredAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "registrations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "eventId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "paymentStatus",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "registrations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "eventId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "registrationStatus",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attendanceStatus",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startsAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "city",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "read",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "waitlists",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "eventId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "position",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "feedback",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "eventId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "reports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchTokens",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "eventRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "eventRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "requestedBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

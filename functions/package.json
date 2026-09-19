@@ -1,0 +1,28 @@
+{
+  "name": "crewday-functions",
+  "description": "CrewDay Cloud Functions — push delivery, reminders and admin tooling",
+  "private": true,
+  "type": "commonjs",
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.6.0",
+    "firebase-functions": "^6.6.0",
+    "nodemailer": "^10.0.10",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^8.0.2",
+    "@types/qrcode": "^1.5.6",
+    "typescript": "^5.9.3"
+  }
+}
