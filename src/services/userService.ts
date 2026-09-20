@@ -94,7 +94,11 @@ export async function ensureUserProfile(user: User): Promise<UserProfile> {
     const patch: Record<string, unknown> = { lastActiveAt: serverTimestamp() }
     if (user.email && user.email !== existing.email) patch.email = user.email
     if (!existing.photoURL && user.photoURL) patch.photoURL = user.photoURL
-    await updateDoc(userRef(user.uid), patch)
+    // Not awaited. This write is bookkeeping, and the SDK retries a write the
+    // server refuses for quota (RESOURCE_EXHAUSTED) indefinitely with backoff,
+    // so awaiting it kept every sign-in on the loading screen for as long as
+    // the free-plan write quota stayed spent. The profile is already here.
+    void updateDoc(userRef(user.uid), patch).catch(() => undefined)
     return { ...existing, ...(patch.email ? { email: user.email as string } : {}) }
   }
 

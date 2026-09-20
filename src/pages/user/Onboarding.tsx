@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, Plus, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
@@ -31,7 +31,6 @@ export default function OnboardingPage() {
   const [city, setCity] = useState('')
   const [area, setArea] = useState('')
   const [customInterest, setCustomInterest] = useState('')
-  const [addingCustom, setAddingCustom] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
@@ -47,13 +46,12 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     let cancelled = false
-    listInterestCatalogue()
-      .then((list) => {
-        if (!cancelled) setInterests(list)
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingInterests(false)
-      })
+    // Never rejects: the seed catalogue is the floor.
+    void listInterestCatalogue().then((list) => {
+      if (cancelled) return
+      setInterests(list)
+      setLoadingInterests(false)
+    })
     return () => {
       cancelled = true
     }
@@ -75,8 +73,8 @@ export default function OnboardingPage() {
     trackSync('interest_selected', { interest: name })
   }
 
-  // Whatever is typed in the box already counts: nobody has to press a
-  // button. Several interests can be typed at once, separated by commas.
+  // What is typed in the box but not yet added. Several can be typed at
+  // once, separated by commas.
   const pendingCustom = useMemo(
     () =>
       [...new Set(customInterest.split(',').map((part) => part.trim()).filter(Boolean))].filter(
@@ -86,13 +84,13 @@ export default function OnboardingPage() {
   )
   const canLeaveInterests = selected.length > 0 || pendingCustom.length > 0
 
-  const addCustomInterest = async () => {
+  const addCustomInterest = () => {
     if (!user || pendingCustom.length === 0) return
-    setAddingCustom(true)
     const values = pendingCustom
-    // The choice is kept locally straight away; saving to the catalogue is a
-    // nicety for the admin "popular interests" panel and may be refused by
-    // the rules, in which case nothing the person typed is lost.
+    // Selected locally straight away. Saving to the shared catalogue only
+    // feeds the admin "popular interests" panel, may be refused by the rules,
+    // and on a project whose write quota is spent would not be acknowledged
+    // for hours - so it is never awaited and nothing the person typed is lost.
     setSelected((current) => [
       ...current,
       ...values.filter(
@@ -100,22 +98,22 @@ export default function OnboardingPage() {
       ),
     ])
     setCustomInterest('')
-    try {
-      for (const value of values) {
-        const created = await createInterest({ name: value, custom: true, createdBy: user.uid })
-        setInterests((current) =>
-          current.some((entry) => entry.id === created.id) ? current : [...current, created],
+    for (const value of values) {
+      trackSync('interest_selected', { interest: value })
+      createInterest({ name: value, custom: true, createdBy: user.uid })
+        .then((created) =>
+          setInterests((current) =>
+            current.some((entry) => entry.id === created.id) ? current : [...current, created],
+          ),
         )
-      }
-    } catch {
-      // Kept locally above.
-    } finally {
-      setAddingCustom(false)
+        .catch(() => undefined)
     }
   }
 
-  const continueFromInterests = async () => {
-    if (pendingCustom.length) await addCustomInterest()
+  // Typing something and pressing Continue without Add is the most common
+  // slip on this screen, so Continue adds it rather than losing it.
+  const continueFromInterests = () => {
+    addCustomInterest()
     setStep(1)
   }
 
@@ -136,14 +134,21 @@ export default function OnboardingPage() {
     setFormError(null)
     setSaving(true)
     try {
-      await completeOnboarding(user.uid, {
-        name,
-        phone,
-        city,
-        area,
-        interests: selected,
-        participationType,
-      })
+      // The write lands in the local cache instantly and the profile listener
+      // picks it up from there, so a slow or quota-throttled server must not
+      // keep someone on this screen: after a few seconds, move on and let the
+      // SDK finish syncing in the background.
+      await Promise.race([
+        completeOnboarding(user.uid, {
+          name,
+          phone,
+          city,
+          area,
+          interests: selected,
+          participationType,
+        }),
+        new Promise<void>((resolve) => window.setTimeout(resolve, 4000)),
+      ])
       // Usage counts drive the admin "popular interests" panel. Best effort.
       void bumpInterestUsage(
         selected
@@ -258,15 +263,39 @@ export default function OnboardingPage() {
                       onChange={(event) => setCustomInterest(event.target.value)}
                       placeholder="Table tennis, pottery, chess…"
                       aria-label="Custom interest"
-                      hint="Just type it. No button needed. Separate several with commas."
+                      aria-describedby="custom-interest-help"
+                      enterKeyHint="done"
+                      className={clsx(pendingCustom.length && 'border-brand-400 ring-4 ring-brand-100')}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter') {
                           event.preventDefault()
-                          void addCustomInterest()
+                          addCustomInterest()
                         }
                       }}
                     />
-                    {pendingCustom.length || customSelected.length ? (
+                    {/* The state of the box is spelled out. Something typed but
+                        not yet a chip is the moment people wonder what to do. */}
+                    {pendingCustom.length ? (
+                      <p
+                        id="custom-interest-help"
+                        role="status"
+                        className="mt-2 flex items-start gap-1.5 text-sm font-semibold text-brand-700"
+                      >
+                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white">
+                          <Check size={11} strokeWidth={3} aria-hidden />
+                        </span>
+                        <span>
+                          Got it. {pendingCustom.length === 1 ? `“${pendingCustom[0]}”` : 'These'} will
+                          be added when you press Continue. Press Enter to add{' '}
+                          {pendingCustom.length === 1 ? 'it' : 'them'} now.
+                        </span>
+                      </p>
+                    ) : (
+                      <p id="custom-interest-help" className="mt-2 text-sm text-ink-500">
+                        Just type it. No button needed. Separate several with commas.
+                      </p>
+                    )}
+                    {customSelected.length ? (
                       <div className="mt-3 flex flex-wrap gap-2" aria-live="polite">
                         {customSelected.map((entry) => (
                           <button
@@ -279,15 +308,6 @@ export default function OnboardingPage() {
                             <Check size={14} strokeWidth={3} aria-hidden />
                             {entry}
                           </button>
-                        ))}
-                        {pendingCustom.map((entry) => (
-                          <span
-                            key={`pending-${entry}`}
-                            className="inline-flex items-center gap-1.5 rounded-full border-2 border-dashed border-brand-300 bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700"
-                          >
-                            <Plus size={14} strokeWidth={3} aria-hidden />
-                            {entry}
-                          </span>
                         ))}
                       </div>
                     ) : null}
@@ -418,14 +438,17 @@ export default function OnboardingPage() {
             <Button
               fullWidth
               size="lg"
-              loading={addingCustom}
               onClick={() =>
-                step === 0 ? void continueFromInterests() : setStep((current) => (current + 1) as Step)
+                step === 0 ? continueFromInterests() : setStep((current) => (current + 1) as Step)
               }
               disabled={step === 0 && !canLeaveInterests}
               icon={<ArrowRight size={18} />}
             >
-              {step === 0 && !canLeaveInterests ? 'Pick at least one interest' : 'Continue'}
+              {step === 0 && !canLeaveInterests
+                ? 'Pick at least one interest'
+                : step === 0 && pendingCustom.length
+                  ? `Add ${pendingCustom.length === 1 ? `“${pendingCustom[0]}”` : `${pendingCustom.length} interests`} & continue`
+                  : 'Continue'}
             </Button>
           ) : (
             <Button fullWidth size="lg" loading={saving} onClick={() => void finish()}>

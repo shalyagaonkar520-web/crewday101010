@@ -19,6 +19,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { COLLECTIONS, db } from '@/firebase/config'
+import { isInlineImage } from '@/services/storageService'
 import type {
   AttendanceStatus,
   CrewEvent,
@@ -170,7 +171,10 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
       eventDate: event.date,
       eventStartTime: event.startTime,
       eventVenue: event.venue,
-      eventImageURL: event.imageURL ?? '',
+      // An image saved inside the event document is a data URL of a few
+      // hundred KB; copying it into every registration would bloat the
+      // "my events" listing. The ticket falls back to its branded header.
+      eventImageURL: isInlineImage(event.imagePath) ? '' : (event.imageURL ?? ''),
       userId: input.userId,
       name: sanitiseText(input.name, 80),
       email: input.email.trim().toLowerCase(),

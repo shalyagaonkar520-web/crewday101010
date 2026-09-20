@@ -1,82 +1,87 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ImagePlus, Loader2, Rocket, Save, Trash2 } from 'lucide-react'
-import clsx from 'clsx'
-import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
-import { Input, Select, Textarea, Toggle } from '@/components/ui/Field'
-import { InlineAlert, LoadingScreen } from '@/components/ui/Feedback'
-import { useAuth } from '@/hooks/useAuth'
-import { useToast } from '@/hooks/useToast'
-import { createEvent, getEvent, updateEvent } from '@/services/eventService'
-import { deleteStoredFile, uploadEventImage } from '@/services/storageService'
-import { notifyEventAudience } from '@/services/notificationService'
-import { trackSync } from '@/services/analyticsService'
-import { DEFAULT_CURRENCY, EVENT_CATEGORIES } from '@/utils/constants'
-import { formatPrice, isoDaysFromNow } from '@/utils/format'
-import { hasErrors, validateEventDraft, type FieldErrors } from '@/utils/validation'
-import type { EventAudienceType, EventDraft, EventStatus } from '@/types'
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Link2, Rocket, Save, Trash2 } from "lucide-react";
+import clsx from "clsx";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Input, Select, Textarea, Toggle } from "@/components/ui/Field";
+import { InlineAlert, LoadingScreen } from "@/components/ui/Feedback";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/useToast";
+import { createEvent, getEvent, updateEvent } from "@/services/eventService";
+import { deleteStoredFile } from "@/services/storageService";
+import { notifyEventAudience } from "@/services/notificationService";
+import { trackSync } from "@/services/analyticsService";
+import { DEFAULT_CURRENCY, EVENT_CATEGORIES } from "@/utils/constants";
+import { formatPrice, isoDaysFromNow } from "@/utils/format";
+import {
+  hasErrors,
+  validateEventDraft,
+  type FieldErrors,
+} from "@/utils/validation";
+import type { EventAudienceType, EventDraft, EventStatus } from "@/types";
 
-const PRICE_PRESETS = [0, 99, 199, 499, 999]
+const PRICE_PRESETS = [0, 99, 199, 499, 999];
 
 function emptyDraft(): EventDraft {
   return {
-    title: '',
-    description: '',
-    imageURL: '',
-    imagePath: '',
-    category: '',
+    title: "",
+    description: "",
+    imageURL: "",
+    imagePath: "",
+    category: "",
     date: isoDaysFromNow(7),
-    startTime: '17:00',
-    endTime: '',
-    venue: '',
-    address: '',
+    startTime: "17:00",
+    endTime: "",
+    venue: "",
+    address: "",
     // CrewDay is launching in one neighbourhood, so new events default there
     // rather than starting blank. Both remain editable.
-    city: 'Bengaluru',
-    area: 'Electronic City',
-    mapsURL: '',
+    city: "Bengaluru",
+    area: "Electronic City",
+    mapsURL: "",
     capacity: 50,
     price: 0,
     currency: DEFAULT_CURRENCY,
-    eventTypes: ['both'],
-    status: 'draft',
+    eventTypes: ["both"],
+    status: "draft",
     featured: false,
     waitlistEnabled: true,
     tags: [],
-  }
+  };
 }
 
 export default function EventFormPage() {
-  const { eventId } = useParams()
-  const isEdit = Boolean(eventId)
-  const navigate = useNavigate()
-  const { user } = useAuth()
-  const { success, error: toastError } = useToast()
-  const fileInput = useRef<HTMLInputElement>(null)
+  const { eventId } = useParams();
+  const isEdit = Boolean(eventId);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { success } = useToast();
 
-  const [draft, setDraft] = useState<EventDraft>(emptyDraft)
-  const [originalImagePath, setOriginalImagePath] = useState('')
-  const [originalStatus, setOriginalStatus] = useState<EventStatus>('draft')
-  const [originalDateTime, setOriginalDateTime] = useState('')
-  const [originalVenue, setOriginalVenue] = useState('')
-  const [loading, setLoading] = useState(isEdit)
-  const [saving, setSaving] = useState<'draft' | 'publish' | null>(null)
-  const [uploadPercent, setUploadPercent] = useState<number | null>(null)
-  const [errors, setErrors] = useState<FieldErrors<EventDraft>>({})
-  const [formError, setFormError] = useState<string | null>(null)
-  const [tagsInput, setTagsInput] = useState('')
+  const [draft, setDraft] = useState<EventDraft>(emptyDraft);
+  const [originalImagePath, setOriginalImagePath] = useState("");
+  const [originalStatus, setOriginalStatus] = useState<EventStatus>("draft");
+  const [originalDateTime, setOriginalDateTime] = useState("");
+  const [originalVenue, setOriginalVenue] = useState("");
+  const [loading, setLoading] = useState(isEdit);
+  const [saving, setSaving] = useState<"draft" | "publish" | null>(null);
+  const [checkingLink, setCheckingLink] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors<EventDraft>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [tagsInput, setTagsInput] = useState("");
+  const [imageLink, setImageLink] = useState("");
+  const [imageLinkError, setImageLinkError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!eventId) return
-    let cancelled = false
+    if (!eventId) return;
+    let cancelled = false;
 
     getEvent(eventId)
       .then((event) => {
-        if (cancelled) return
+        if (cancelled) return;
         if (!event) {
-          setFormError('That event no longer exists.')
-          return
+          setFormError("That event no longer exists.");
+          return;
         }
         setDraft({
           title: event.title,
@@ -100,118 +105,176 @@ export default function EventFormPage() {
           featured: event.featured,
           waitlistEnabled: event.waitlistEnabled,
           tags: event.tags,
-        })
-        setTagsInput(event.tags.join(', '))
-        setOriginalImagePath(event.imagePath)
-        setOriginalStatus(event.status)
-        setOriginalDateTime(`${event.date}T${event.startTime}`)
-        setOriginalVenue(event.venue)
+        });
+        setTagsInput(event.tags.join(", "));
+        setOriginalImagePath(event.imagePath);
+        setOriginalStatus(event.status);
+        setOriginalDateTime(`${event.date}T${event.startTime}`);
+        setOriginalVenue(event.venue);
       })
       .catch(() => {
-        if (!cancelled) setFormError('We could not load this event.')
+        if (!cancelled) setFormError("We could not load this event.");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+        if (!cancelled) setLoading(false);
+      });
 
     return () => {
-      cancelled = true
-    }
-  }, [eventId])
+      cancelled = true;
+    };
+  }, [eventId]);
 
-  const patch = (next: Partial<EventDraft>) => setDraft((current) => ({ ...current, ...next }))
+  const patch = (next: Partial<EventDraft>) =>
+    setDraft((current) => ({ ...current, ...next }));
 
-  const onPickImage = async (file: File | undefined) => {
-    if (!file) return
-    setUploadPercent(0)
+  // A pasted link is used as-is: nothing is uploaded, and `imagePath` stays
+  // empty so nothing is ever deleted from Storage for it. The browser loading
+  // the picture is the validation — a link that does not show an image is
+  // refused before it can reach the event.
+  const applyImageLink = async () => {
+    const value = imageLink.trim();
+    if (!value) return;
+    let url: URL;
     try {
-      const result = await uploadEventImage(file, setUploadPercent)
-      patch({ imageURL: result.url, imagePath: result.path })
-      success('Image uploaded.')
-    } catch (caught) {
-      toastError(caught instanceof Error ? caught.message : 'Upload failed.')
-    } finally {
-      setUploadPercent(null)
+      url = new URL(value);
+    } catch {
+      setImageLinkError(
+        "That does not look like a link. It should start with https://",
+      );
+      return;
     }
-  }
+    if (url.protocol !== "https:") {
+      setImageLinkError("Image links must start with https://");
+      return;
+    }
+    setImageLinkError(null);
+    setCheckingLink(true);
+    const loads = await new Promise<boolean>((resolve) => {
+      const probe = new Image();
+      probe.onload = () => resolve(true);
+      probe.onerror = () => resolve(false);
+      probe.src = url.href;
+    });
+    setCheckingLink(false);
+    if (!loads) {
+      setImageLinkError(
+        "That link does not open as an image. Use a direct link to the picture (ending in .jpg, .png or .webp usually).",
+      );
+      return;
+    }
+    if (draft.imagePath && draft.imagePath !== originalImagePath) {
+      await deleteStoredFile(draft.imagePath);
+    }
+    patch({ imageURL: url.href, imagePath: "" });
+    setImageLink("");
+    success("Image link added. Remember to save.");
+  };
 
   const removeImage = async () => {
     // Only delete from Storage if this upload is not the one already saved on
     // the event — otherwise an abandoned edit would break the live listing.
     if (draft.imagePath && draft.imagePath !== originalImagePath) {
-      await deleteStoredFile(draft.imagePath)
+      await deleteStoredFile(draft.imagePath);
     }
-    patch({ imageURL: '', imagePath: '' })
-  }
+    patch({ imageURL: "", imagePath: "" });
+  };
 
-  const save = async (mode: 'draft' | 'publish') => {
-    if (!user) return
+  const save = async (mode: "draft" | "publish") => {
+    if (!user) return;
 
     const status: EventStatus =
-      mode === 'publish'
-        ? 'open'
-        : draft.status === 'open' || draft.status === 'closed'
+      mode === "publish"
+        ? "open"
+        : draft.status === "open" || draft.status === "closed"
           ? draft.status
-          : 'draft'
+          : "draft";
 
-    const candidate: EventDraft = { ...draft, status }
-    const validation = validateEventDraft(candidate)
-    setErrors(validation)
+    const candidate: EventDraft = { ...draft, status };
+    const validation = validateEventDraft(candidate);
+    setErrors(validation);
     if (hasErrors(validation)) {
-      setFormError('Please fix the highlighted fields.')
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-      return
+      setFormError("Please fix the highlighted fields.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
     }
 
-    setFormError(null)
-    setSaving(mode)
+    setFormError(null);
+    setSaving(mode);
     try {
       if (isEdit && eventId) {
-        await updateEvent(eventId, candidate)
+        await updateEvent(eventId, candidate);
 
         // Tell attendees when something they planned around actually moved.
-        const timeChanged = originalDateTime !== `${candidate.date}T${candidate.startTime}`
-        const venueChanged = originalVenue !== candidate.venue
-        if ((timeChanged || venueChanged) && originalStatus !== 'draft') {
+        const timeChanged =
+          originalDateTime !== `${candidate.date}T${candidate.startTime}`;
+        const venueChanged = originalVenue !== candidate.venue;
+        if ((timeChanged || venueChanged) && originalStatus !== "draft") {
           await notifyEventAudience({
             eventId,
-            type: 'event_updated',
+            type: "event_updated",
             title: `${candidate.title} has been updated`,
             body: timeChanged
               ? `New time: ${candidate.date} at ${candidate.startTime}.`
               : `New venue: ${candidate.venue}.`,
-          }).catch(() => undefined)
+          }).catch(() => undefined);
         }
 
-        if (mode === 'publish' && originalStatus !== 'open') {
-          trackSync('event_published', { eventId })
+        if (mode === "publish" && originalStatus !== "open") {
+          trackSync("event_published", { eventId });
         }
-        success(mode === 'publish' ? 'Event published. It is live now.' : 'Changes saved.')
-        navigate('/admin/events')
-      } else {
-        const createdId = await createEvent(candidate, user.uid)
-        if (mode === 'publish') trackSync('event_published', { eventId: createdId })
         success(
-          mode === 'publish'
-            ? 'Event published. It is live in the app now.'
-            : 'Draft saved. Publish it when you are ready.',
-        )
-        navigate('/admin/events')
+          mode === "publish"
+            ? "Event published. It is live now."
+            : "Changes saved.",
+        );
+        navigate("/admin/events");
+      } else {
+        const createdId = await createEvent(candidate, user.uid);
+        if (mode === "publish")
+          trackSync("event_published", { eventId: createdId });
+        success(
+          mode === "publish"
+            ? "Event published. It is live in the app now."
+            : "Draft saved. Publish it when you are ready.",
+        );
+        navigate("/admin/events");
       }
     } catch {
-      setFormError('We could not save this event. Check your connection and try again.')
+      setFormError(
+        "We could not save this event. Check your connection and try again.",
+      );
     } finally {
-      setSaving(null)
+      setSaving(null);
     }
-  }
+  };
 
-  if (loading) return <LoadingScreen label="Loading event…" />
+  if (loading) return <LoadingScreen label="Loading event…" />;
 
-  const audienceOptions: { value: EventAudienceType; emoji: string; label: string; hint: string }[] = [
-    { value: 'participant', emoji: '🎤', label: 'Participant', hint: 'People who perform or play' },
-    { value: 'audience', emoji: '👀', label: 'Audience', hint: 'People who come to watch' },
-    { value: 'both', emoji: '🤝', label: 'Both', hint: 'Attendee picks at registration' },
-  ]
+  const audienceOptions: {
+    value: EventAudienceType;
+    emoji: string;
+    label: string;
+    hint: string;
+  }[] = [
+    {
+      value: "participant",
+      emoji: "🎤",
+      label: "Participant",
+      hint: "People who perform or play",
+    },
+    {
+      value: "audience",
+      emoji: "👀",
+      label: "Audience",
+      hint: "People who come to watch",
+    },
+    {
+      value: "both",
+      emoji: "🤝",
+      label: "Both",
+      hint: "Attendee picks at registration",
+    },
+  ];
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -223,12 +286,12 @@ export default function EventFormPage() {
       </Link>
 
       <h1 className="font-display text-3xl font-extrabold text-ink-900">
-        {isEdit ? 'Edit event' : 'Create Event'}
+        {isEdit ? "Edit event" : "Create Event"}
       </h1>
       <p className="mt-1 text-ink-500">
         {isEdit
-          ? 'Changes go live as soon as you save.'
-          : 'Published events appear in the user app immediately.'}
+          ? "Changes go live as soon as you save."
+          : "Published events appear in the user app immediately."}
       </p>
 
       {formError ? (
@@ -239,15 +302,17 @@ export default function EventFormPage() {
 
       <form
         onSubmit={(event: FormEvent) => {
-          event.preventDefault()
-          void save('publish')
+          event.preventDefault();
+          void save("publish");
         }}
         className="mt-6 space-y-6"
         noValidate
       >
         {/* Basics */}
         <Card className="space-y-4 p-5">
-          <h2 className="font-display text-lg font-bold text-ink-900">The basics</h2>
+          <h2 className="font-display text-lg font-bold text-ink-900">
+            The basics
+          </h2>
 
           <Input
             label="Event name"
@@ -265,7 +330,9 @@ export default function EventFormPage() {
             value={draft.description}
             onChange={(event) => patch({ description: event.target.value })}
             error={errors.description}
-            placeholder={'What happens at this event?\n\nWho should come?\nWhat should they bring?'}
+            placeholder={
+              "What happens at this event?\n\nWho should come?\nWhat should they bring?"
+            }
             hint="Line breaks are preserved."
           />
 
@@ -276,7 +343,10 @@ export default function EventFormPage() {
             value={draft.category}
             onChange={(event) => patch({ category: event.target.value })}
             error={errors.category}
-            options={EVENT_CATEGORIES.map((category) => ({ value: category, label: category }))}
+            options={EVENT_CATEGORIES.map((category) => ({
+              value: category,
+              label: category,
+            }))}
           />
 
           <Input
@@ -286,7 +356,7 @@ export default function EventFormPage() {
             onBlur={() =>
               patch({
                 tags: tagsInput
-                  .split(',')
+                  .split(",")
                   .map((tag) => tag.trim())
                   .filter(Boolean),
               })
@@ -298,11 +368,23 @@ export default function EventFormPage() {
 
         {/* Image */}
         <Card className="space-y-4 p-5">
-          <h2 className="font-display text-lg font-bold text-ink-900">Event image</h2>
+          <div>
+            <h2 className="font-display text-lg font-bold text-ink-900">
+              Event image
+            </h2>
+            <p className="mt-1 text-sm text-ink-500">
+              Paste a link to the poster. Right-click a picture anywhere on the
+              web and choose “Copy image address”.
+            </p>
+          </div>
 
           {draft.imageURL ? (
             <div className="relative overflow-hidden rounded-2xl">
-              <img src={draft.imageURL} alt="" className="aspect-16/9 w-full object-cover" />
+              <img
+                src={draft.imageURL}
+                alt=""
+                className="aspect-16/9 w-full object-cover"
+              />
               <button
                 type="button"
                 onClick={() => void removeImage()}
@@ -313,36 +395,45 @@ export default function EventFormPage() {
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => fileInput.current?.click()}
-              className="flex aspect-16/9 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink-200 bg-ink-50 text-ink-500 transition hover:border-brand-300 hover:bg-brand-50"
-            >
-              {uploadPercent === null ? (
-                <>
-                  <ImagePlus size={28} aria-hidden />
-                  <span className="text-sm font-semibold">Upload an event image</span>
-                  <span className="text-xs">JPG, PNG or WebP · up to 5 MB</span>
-                </>
-              ) : (
-                <>
-                  <Loader2 size={26} className="animate-spin" aria-hidden />
-                  <span className="text-sm font-semibold">Uploading… {uploadPercent}%</span>
-                </>
-              )}
-            </button>
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <Input
+                  value={imageLink}
+                  onChange={(event) => {
+                    setImageLink(event.target.value);
+                    if (imageLinkError) setImageLinkError(null);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void applyImageLink();
+                    }
+                  }}
+                  placeholder="https://…"
+                  aria-label="Image link"
+                  inputMode="url"
+                  autoComplete="off"
+                  leading={<Link2 size={16} aria-hidden />}
+                  error={imageLinkError ?? undefined}
+                  hint={checkingLink ? "Checking the link…" : undefined}
+                />
+              </div>
+              <Button
+                type="button"
+                className="h-12 shrink-0"
+                onClick={() => void applyImageLink()}
+                loading={checkingLink}
+                disabled={!imageLink.trim() || checkingLink}
+              >
+                Use link
+              </Button>
+            </div>
           )}
 
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(event) => void onPickImage(event.target.files?.[0])}
-          />
           <p className="text-xs text-ink-500">
-            Images are resized in the browser before upload to keep the app fast. Without an image
-            the card falls back to a branded gradient.
+            The picture is shown straight from its source, so keep it online for
+            as long as the event is listed. Without an image the card falls back
+            to a branded gradient.
           </p>
         </Card>
 
@@ -350,7 +441,8 @@ export default function EventFormPage() {
         <Card className="space-y-4 p-5">
           <h2 className="font-display text-lg font-bold text-ink-900">When</h2>
           <p className="-mt-2 text-sm text-ink-500">
-            Any date works — Sundays, Saturdays, festivals, weekdays or one-off workshops.
+            Any date works — Sundays, Saturdays, festivals, weekdays or one-off
+            workshops.
           </p>
 
           <Input
@@ -431,7 +523,9 @@ export default function EventFormPage() {
 
         {/* Capacity and price */}
         <Card className="space-y-4 p-5">
-          <h2 className="font-display text-lg font-bold text-ink-900">Seats & price</h2>
+          <h2 className="font-display text-lg font-bold text-ink-900">
+            Seats & price
+          </h2>
 
           <Input
             type="number"
@@ -439,7 +533,9 @@ export default function EventFormPage() {
             required
             min={1}
             value={String(draft.capacity)}
-            onChange={(event) => patch({ capacity: Number(event.target.value) })}
+            onChange={(event) =>
+              patch({ capacity: Number(event.target.value) })
+            }
             error={errors.capacity}
             hint="Registration stops automatically once this is reached."
           />
@@ -463,21 +559,22 @@ export default function EventFormPage() {
                   type="button"
                   onClick={() => patch({ price: preset })}
                   className={clsx(
-                    'rounded-full border px-3.5 py-1.5 text-sm font-semibold transition',
+                    "rounded-full border px-3.5 py-1.5 text-sm font-semibold transition",
                     draft.price === preset
-                      ? 'border-brand-600 bg-brand-600 text-white'
-                      : 'border-ink-200 bg-white text-ink-700 hover:border-brand-300',
+                      ? "border-brand-600 bg-brand-600 text-white"
+                      : "border-ink-200 bg-white text-ink-700 hover:border-brand-300",
                   )}
                 >
-                  {preset === 0 ? 'Free' : `₹${preset}`}
+                  {preset === 0 ? "Free" : `₹${preset}`}
                 </button>
               ))}
             </div>
             {draft.price > 0 ? (
               <div className="mt-3">
                 <InlineAlert tone="warning">
-                  Paid registrations are held as <strong>payment pending</strong> until a payment
-                  provider confirms them — they are never auto-confirmed.
+                  Paid registrations are held as{" "}
+                  <strong>payment pending</strong> until a payment provider
+                  confirms them — they are never auto-confirmed.
                 </InlineAlert>
               </div>
             ) : null}
@@ -493,11 +590,13 @@ export default function EventFormPage() {
 
         {/* Who */}
         <Card className="space-y-4 p-5">
-          <h2 className="font-display text-lg font-bold text-ink-900">Who can join</h2>
+          <h2 className="font-display text-lg font-bold text-ink-900">
+            Who can join
+          </h2>
 
           <div className="grid gap-3 sm:grid-cols-3">
             {audienceOptions.map((option) => {
-              const active = draft.eventTypes[0] === option.value
+              const active = draft.eventTypes[0] === option.value;
               return (
                 <button
                   key={option.value}
@@ -505,21 +604,27 @@ export default function EventFormPage() {
                   onClick={() => patch({ eventTypes: [option.value] })}
                   aria-pressed={active}
                   className={clsx(
-                    'rounded-2xl border-2 p-4 text-left transition',
-                    active ? 'border-brand-600 bg-brand-50' : 'border-ink-200 bg-white hover:border-brand-300',
+                    "rounded-2xl border-2 p-4 text-left transition",
+                    active
+                      ? "border-brand-600 bg-brand-50"
+                      : "border-ink-200 bg-white hover:border-brand-300",
                   )}
                 >
                   <span className="text-2xl" aria-hidden>
                     {option.emoji}
                   </span>
-                  <p className="mt-1.5 font-bold text-ink-900">{option.label}</p>
+                  <p className="mt-1.5 font-bold text-ink-900">
+                    {option.label}
+                  </p>
                   <p className="text-xs text-ink-500">{option.hint}</p>
                 </button>
-              )
+              );
             })}
           </div>
           {errors.eventTypes ? (
-            <p className="text-sm font-medium text-sunset-700">{errors.eventTypes}</p>
+            <p className="text-sm font-medium text-sunset-700">
+              {errors.eventTypes}
+            </p>
           ) : null}
 
           <Toggle
@@ -532,19 +637,32 @@ export default function EventFormPage() {
 
         {/* Status + actions */}
         <Card className="space-y-4 p-5">
-          <h2 className="font-display text-lg font-bold text-ink-900">Registration status</h2>
+          <h2 className="font-display text-lg font-bold text-ink-900">
+            Registration status
+          </h2>
           <Select
             label="Status"
             value={draft.status}
-            onChange={(event) => patch({ status: event.target.value as EventStatus })}
+            onChange={(event) =>
+              patch({ status: event.target.value as EventStatus })
+            }
             options={[
-              { value: 'draft', label: 'Draft — hidden from the app' },
-              { value: 'open', label: 'Open — visible, accepting registrations' },
-              { value: 'closed', label: 'Closed — visible, registration closed' },
+              { value: "draft", label: "Draft — hidden from the app" },
+              {
+                value: "open",
+                label: "Open — visible, accepting registrations",
+              },
+              {
+                value: "closed",
+                label: "Closed — visible, registration closed",
+              },
               ...(isEdit
                 ? [
-                    { value: 'completed', label: 'Completed — event has happened' },
-                    { value: 'cancelled', label: 'Cancelled' },
+                    {
+                      value: "completed",
+                      label: "Completed — event has happened",
+                    },
+                    { value: "cancelled", label: "Cancelled" },
                   ]
                 : []),
             ]}
@@ -558,18 +676,18 @@ export default function EventFormPage() {
             className="sm:flex-1"
             size="lg"
             icon={<Save size={18} />}
-            loading={saving === 'draft'}
+            loading={saving === "draft"}
             disabled={saving !== null}
-            onClick={() => void save('draft')}
+            onClick={() => void save("draft")}
           >
-            {isEdit ? 'Save changes' : 'Save as draft'}
+            {isEdit ? "Save changes" : "Save as draft"}
           </Button>
           <Button
             type="submit"
             className="sm:flex-1"
             size="lg"
             icon={<Rocket size={18} />}
-            loading={saving === 'publish'}
+            loading={saving === "publish"}
             disabled={saving !== null}
           >
             Publish event
@@ -577,5 +695,5 @@ export default function EventFormPage() {
         </div>
       </form>
     </div>
-  )
+  );
 }

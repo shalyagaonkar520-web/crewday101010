@@ -68,27 +68,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        try {
-          // Guarantees a profile document exists before anything reads it —
-          // covers Google sign-in, a first email sign-up and any account whose
-          // document was removed underneath it.
-          await ensureUserProfile(nextUser)
-          setError(null)
-        } catch {
-          setError('We could not load your profile. Check your connection and try again.')
-        }
-
+        // Listen first, then make sure the document exists. The listener
+        // paints from the IndexedDB cache straight away on a repeat visit, and
+        // for a brand-new account it fires with the locally pending write the
+        // moment `ensureUserProfile` issues it — so nobody waits on the server
+        // acknowledging a write, which on a spent write quota never comes.
         profileUnsubscribe.current = subscribeToUserProfile(
           nextUser.uid,
           (nextProfile) => {
             setProfile(nextProfile)
-            setLoading(false)
+            if (nextProfile) {
+              setError(null)
+              setLoading(false)
+            }
           },
           () => {
             setError('We could not load your profile. Check your connection and try again.')
             setLoading(false)
           },
         )
+
+        try {
+          // Guarantees a profile document exists before anything reads it —
+          // covers Google sign-in, a first email sign-up and any account whose
+          // document was removed underneath it.
+          await ensureUserProfile(nextUser)
+        } catch {
+          setError('We could not load your profile. Check your connection and try again.')
+        } finally {
+          setLoading(false)
+        }
       },
       () => {
         setError('Authentication is unavailable right now.')
