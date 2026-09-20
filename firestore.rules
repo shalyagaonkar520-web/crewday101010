@@ -42,7 +42,7 @@ service cloud.firestore {
       return isSignedIn()
         && (
           (userExists(uid()) && userData(uid()).role == 'admin' && userData(uid()).status == 'active')
-          || request.auth.token.email == 'shalyagaonkar@gmail.com'
+          || (request.auth.token.email == 'shalyagaonkar@gmail.com' && request.auth.token.email_verified == true)
         );
     }
 
@@ -83,7 +83,7 @@ service cloud.firestore {
       // pinned to 'user', status to 'active', and the counters start at zero.
       allow create: if isOwner(userId)
         && request.resource.data.uid == userId
-        && (request.resource.data.role == 'user' || request.auth.token.email == 'shalyagaonkar@gmail.com')
+        && (request.resource.data.role == 'user' || (request.auth.token.email == 'shalyagaonkar@gmail.com' && request.auth.token.email_verified == true))
         && request.resource.data.status == 'active'
         && request.resource.data.eventsRegistered == 0
         && request.resource.data.eventsAttended == 0

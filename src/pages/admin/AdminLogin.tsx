@@ -7,24 +7,28 @@ import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Field'
 import { InlineAlert, Spinner } from '@/components/ui/Feedback'
 import { Logo } from '@/components/layout/Logo'
+import { GoogleIcon } from '@/layouts/AuthLayout'
 import { useAuth } from '@/hooks/useAuth'
-import { logout, signInWithEmail, signUpWithEmail } from '@/services/authService'
+import { logout, signInWithEmail, signInWithGoogle } from '@/services/authService'
 import { authErrorMessage } from '@/utils/validation'
 import type { UserProfile } from '@/types'
 
 /**
  * Organiser sign-in.
  *
- * Configured with admin credentials (shalyagaonkar@gmail.com).
+ * Email/password or Google — the owner's account is a Google account, so the
+ * Google button is the one-tap path. Nothing is auto-submitted and no password
+ * lives in this bundle: whoever signs in still has to hold an account whose
+ * profile carries `role: admin`, which only the security rules can grant.
  */
 export default function AdminLoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { isAuthenticated, isAdmin, loading, profile } = useAuth()
 
-  const [email, setEmail] = useState('shalyagaonkar@gmail.com')
-  const [password, setPassword] = useState('shalya@2004')
-  const [busy, setBusy] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState<'email' | 'google' | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const denied = (location.state as { denied?: boolean } | null)?.denied
@@ -33,43 +37,39 @@ export default function AdminLoginPage() {
     if (!loading && isAuthenticated && isAdmin) navigate('/admin', { replace: true })
   }, [loading, isAuthenticated, isAdmin, navigate])
 
+  const finish = async (signedIn: UserProfile) => {
+    if (signedIn.role !== 'admin') {
+      // Signed in fine, but this is not an organiser account.
+      await logout()
+      setError('This account does not have organiser access.')
+      return
+    }
+    navigate('/admin', { replace: true })
+  }
+
   const doLogin = async (loginEmail: string, loginPass: string) => {
     setError(null)
-    setBusy(true)
+    setBusy('email')
     try {
-      let signedIn: UserProfile
-      try {
-        signedIn = await signInWithEmail(loginEmail, loginPass)
-      } catch (caught) {
-        const code = (caught as { code?: string })?.code
-        if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
-          // If the account does not exist in Firebase Auth yet, automatically create it
-          signedIn = await signUpWithEmail('Admin', loginEmail, loginPass)
-        } else {
-          throw caught
-        }
-      }
-
-      if (signedIn.role !== 'admin' && loginEmail.trim().toLowerCase() !== 'shalyagaonkar@gmail.com') {
-        // Signed in fine, but this is not an organiser account.
-        await logout()
-        setError('This account does not have organiser access.')
-        return
-      }
-      navigate('/admin', { replace: true })
+      await finish(await signInWithEmail(loginEmail.trim(), loginPass))
     } catch (caught) {
       setError(caught instanceof FirebaseError ? authErrorMessage(caught.code) : 'Sign in failed.')
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
 
-  // Auto sign in with admin credentials outside of tests
-  useEffect(() => {
-    if (!import.meta.env.TEST && !loading && !isAuthenticated && !busy && !error && !denied) {
-      void doLogin(email, password)
+  const onGoogle = async () => {
+    setError(null)
+    setBusy('google')
+    try {
+      await finish(await signInWithGoogle())
+    } catch (caught) {
+      setError(caught instanceof FirebaseError ? authErrorMessage(caught.code) : 'Sign in failed.')
+    } finally {
+      setBusy(null)
     }
-  }, [loading, isAuthenticated, denied])
+  }
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault()
@@ -122,7 +122,27 @@ export default function AdminLoginPage() {
             </div>
           ) : null}
 
-          <form onSubmit={(event) => void onSubmit(event)} className="mt-5 space-y-4" noValidate>
+          <Button
+            type="button"
+            variant="outline"
+            fullWidth
+            size="lg"
+            className="mt-5"
+            icon={<GoogleIcon />}
+            loading={busy === 'google'}
+            disabled={busy !== null}
+            onClick={() => void onGoogle()}
+          >
+            Continue with Google
+          </Button>
+
+          <div className="my-5 flex items-center gap-3 text-xs font-semibold tracking-wide text-ink-400 uppercase">
+            <span className="h-px flex-1 bg-ink-200" />
+            or use email
+            <span className="h-px flex-1 bg-ink-200" />
+          </div>
+
+          <form onSubmit={(event) => void onSubmit(event)} className="space-y-4" noValidate>
             <Input
               type="email"
               label="Email"
@@ -145,7 +165,13 @@ export default function AdminLoginPage() {
 
             {error ? <InlineAlert tone="danger">{error}</InlineAlert> : null}
 
-            <Button type="submit" fullWidth size="lg" loading={busy}>
+            <Button
+              type="submit"
+              fullWidth
+              size="lg"
+              loading={busy === 'email'}
+              disabled={busy !== null}
+            >
               Login
             </Button>
           </form>
