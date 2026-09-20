@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/Field'
 import { InlineAlert, Spinner } from '@/components/ui/Feedback'
 import { Logo } from '@/components/layout/Logo'
 import { useAuth } from '@/hooks/useAuth'
-import { useToast } from '@/hooks/useToast'
 import { bumpInterestUsage, createInterest, listInterests } from '@/services/interestService'
 import { completeOnboarding } from '@/services/userService'
 import { trackSync } from '@/services/analyticsService'
@@ -19,10 +18,23 @@ type Step = 0 | 1 | 2
 
 const STEP_TITLES = ['What are you into?', 'How do you want to join?', 'Where are you?']
 
+function seedCatalogue(): Interest[] {
+  return SEED_INTERESTS.map((seed) => ({
+    id: seed.name,
+    name: seed.name,
+    emoji: seed.emoji,
+    category: seed.category,
+    enabled: true,
+    custom: false,
+    usageCount: 0,
+    createdAt: null,
+    createdBy: '',
+  }))
+}
+
 export default function OnboardingPage() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
-  const { error: toastError } = useToast()
 
   const [step, setStep] = useState<Step>(0)
   const [interests, setInterests] = useState<Interest[]>([])
@@ -53,26 +65,21 @@ export default function OnboardingPage() {
     listInterests()
       .then((list) => {
         if (cancelled) return
-        // An empty `interests` collection (brand new project) still needs to
-        // show something, so fall back to the seed list read-only.
-        setInterests(
-          list.length
-            ? list
-            : SEED_INTERESTS.map((seed) => ({
-                id: seed.name,
-                name: seed.name,
-                emoji: seed.emoji,
-                category: seed.category,
-                enabled: true,
-                custom: false,
-                usageCount: 0,
-                createdAt: null,
-                createdBy: '',
-              })),
-        )
+        // The seed catalogue is always on offer. Firestore adds what admins
+        // created and can override a seed's emoji or category. Interests other
+        // members typed for themselves stay theirs, not everyone's.
+        const fromSeed = seedCatalogue()
+        const byName = new Map(fromSeed.map((entry) => [entry.name.toLowerCase(), entry]))
+        for (const entry of list) {
+          if (entry.custom) continue
+          byName.set(entry.name.toLowerCase(), entry)
+        }
+        setInterests([...byName.values()])
       })
       .catch(() => {
-        if (!cancelled) toastError('We could not load interests. You can still continue.')
+        // The catalogue lives in Firestore, but the seed list is good enough
+        // to get someone through onboarding when that read fails.
+        if (!cancelled) setInterests(seedCatalogue())
       })
       .finally(() => {
         if (!cancelled) setLoadingInterests(false)
@@ -80,7 +87,7 @@ export default function OnboardingPage() {
     return () => {
       cancelled = true
     }
-  }, [toastError])
+  }, [])
 
   const grouped = useMemo(() => {
     const groups = new Map<string, Interest[]>()
@@ -98,28 +105,54 @@ export default function OnboardingPage() {
     trackSync('interest_selected', { interest: name })
   }
 
+  // Whatever is typed in the box already counts: nobody has to press a
+  // button. Several interests can be typed at once, separated by commas.
+  const pendingCustom = useMemo(
+    () =>
+      [...new Set(customInterest.split(',').map((part) => part.trim()).filter(Boolean))].filter(
+        (value) => !selected.some((entry) => entry.toLowerCase() === value.toLowerCase()),
+      ),
+    [customInterest, selected],
+  )
+  const canLeaveInterests = selected.length > 0 || pendingCustom.length > 0
+
   const addCustomInterest = async () => {
-    const value = customInterest.trim()
-    if (!value || !user) return
+    if (!user || pendingCustom.length === 0) return
     setAddingCustom(true)
+    const values = pendingCustom
+    // The choice is kept locally straight away; saving to the catalogue is a
+    // nicety for the admin "popular interests" panel and may be refused by
+    // the rules, in which case nothing the person typed is lost.
+    setSelected((current) => [
+      ...current,
+      ...values.filter(
+        (value) => !current.some((entry) => entry.toLowerCase() === value.toLowerCase()),
+      ),
+    ])
+    setCustomInterest('')
     try {
-      const created = await createInterest({ name: value, custom: true, createdBy: user.uid })
-      setInterests((current) =>
-        current.some((entry) => entry.id === created.id) ? current : [...current, created],
-      )
-      setSelected((current) =>
-        current.includes(created.name) ? current : [...current, created.name],
-      )
-      setCustomInterest('')
+      for (const value of values) {
+        const created = await createInterest({ name: value, custom: true, createdBy: user.uid })
+        setInterests((current) =>
+          current.some((entry) => entry.id === created.id) ? current : [...current, created],
+        )
+      }
     } catch {
-      // Interests are admin-writable in some rule setups; keep the choice local
-      // rather than losing what the person typed.
-      setSelected((current) => (current.includes(value) ? current : [...current, value]))
-      setCustomInterest('')
+      // Kept locally above.
     } finally {
       setAddingCustom(false)
     }
   }
+
+  const continueFromInterests = async () => {
+    if (pendingCustom.length) await addCustomInterest()
+    setStep(1)
+  }
+
+  // Selected interests that are not tiles in the grid: the ones people typed.
+  const customSelected = selected.filter(
+    (entry) => !interests.some((interest) => interest.name === entry),
+  )
 
   const finish = async () => {
     if (!user) return
@@ -250,31 +283,44 @@ export default function OnboardingPage() {
                       <Sparkles size={16} className="text-brand-500" aria-hidden />
                       Add your own interest
                     </p>
-                    <div className="flex gap-2">
-                      <Input
-                        value={customInterest}
-                        onChange={(event) => setCustomInterest(event.target.value)}
-                        placeholder="Table tennis, pottery, chess…"
-                        aria-label="Custom interest"
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault()
-                            void addCustomInterest()
-                          }
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="shrink-0"
-                        loading={addingCustom}
-                        disabled={!customInterest.trim()}
-                        onClick={() => void addCustomInterest()}
-                        icon={<Plus size={16} />}
-                      >
-                        Add
-                      </Button>
-                    </div>
+                    <Input
+                      value={customInterest}
+                      onChange={(event) => setCustomInterest(event.target.value)}
+                      placeholder="Table tennis, pottery, chess…"
+                      aria-label="Custom interest"
+                      hint="Just type it. No button needed. Separate several with commas."
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          void addCustomInterest()
+                        }
+                      }}
+                    />
+                    {pendingCustom.length || customSelected.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2" aria-live="polite">
+                        {customSelected.map((entry) => (
+                          <button
+                            key={entry}
+                            type="button"
+                            onClick={() => toggle(entry)}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white"
+                            aria-label={`Remove ${entry}`}
+                          >
+                            <Check size={14} strokeWidth={3} aria-hidden />
+                            {entry}
+                          </button>
+                        ))}
+                        {pendingCustom.map((entry) => (
+                          <span
+                            key={`pending-${entry}`}
+                            className="inline-flex items-center gap-1.5 rounded-full border-2 border-dashed border-brand-300 bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700"
+                          >
+                            <Plus size={14} strokeWidth={3} aria-hidden />
+                            {entry}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )}
@@ -402,11 +448,14 @@ export default function OnboardingPage() {
             <Button
               fullWidth
               size="lg"
-              onClick={() => setStep((current) => (current + 1) as Step)}
-              disabled={step === 0 && selected.length === 0}
+              loading={addingCustom}
+              onClick={() =>
+                step === 0 ? void continueFromInterests() : setStep((current) => (current + 1) as Step)
+              }
+              disabled={step === 0 && !canLeaveInterests}
               icon={<ArrowRight size={18} />}
             >
-              {step === 0 && selected.length === 0 ? 'Pick at least one interest' : 'Continue'}
+              {step === 0 && !canLeaveInterests ? 'Pick at least one interest' : 'Continue'}
             </Button>
           ) : (
             <Button fullWidth size="lg" loading={saving} onClick={() => void finish()}>

@@ -6,7 +6,6 @@ import {
   getDocs,
   increment,
   onSnapshot,
-  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -38,12 +37,18 @@ function mapInterest(snapshot: QueryDocumentSnapshot<DocumentData>): Interest {
   }
 }
 
+function byName(a: Interest, b: Interest): number {
+  return a.name.localeCompare(b.name)
+}
+
+// Sorting happens here, not in the query: `where('enabled') + orderBy('name')`
+// needs a composite index, and on a project where that index was never
+// deployed the query fails outright and onboarding shows an empty grid. A
+// catalogue of a few dozen names sorts in microseconds on the client.
 export async function listInterests(includeDisabled = false): Promise<Interest[]> {
   const constraints = includeDisabled ? [] : [where('enabled', '==', true)]
-  const snapshot = await getDocs(
-    query(collection(db, COLLECTIONS.interests), ...constraints, orderBy('name')),
-  )
-  return snapshot.docs.map(mapInterest)
+  const snapshot = await getDocs(query(collection(db, COLLECTIONS.interests), ...constraints))
+  return snapshot.docs.map(mapInterest).sort(byName)
 }
 
 export function subscribeToInterests(
@@ -52,9 +57,44 @@ export function subscribeToInterests(
 ): Unsubscribe {
   const constraints = includeDisabled ? [] : [where('enabled', '==', true)]
   return onSnapshot(
-    query(collection(db, COLLECTIONS.interests), ...constraints, orderBy('name')),
-    (snapshot) => onChange(snapshot.docs.map(mapInterest)),
+    query(collection(db, COLLECTIONS.interests), ...constraints),
+    (snapshot) => onChange(snapshot.docs.map(mapInterest).sort(byName)),
   )
+}
+
+/** The built-in catalogue as `Interest` records, for screens that render tiles. */
+export function seedCatalogue(): Interest[] {
+  return SEED_INTERESTS.map((seed) => ({
+    id: slugify(seed.name),
+    name: seed.name,
+    emoji: seed.emoji,
+    category: seed.category,
+    enabled: true,
+    custom: false,
+    usageCount: 0,
+    createdAt: null,
+    createdBy: '',
+  }))
+}
+
+/**
+ * What a member gets to pick from. The seed catalogue is always on offer;
+ * Firestore adds what admins created and may override a seed's emoji or
+ * category. Interests other members typed for themselves stay theirs. Never
+ * rejects: when the read fails (offline, rules, quota) the seed list alone is
+ * enough to get someone through onboarding.
+ */
+export async function listInterestCatalogue(): Promise<Interest[]> {
+  const merged = new Map(seedCatalogue().map((entry) => [entry.name.toLowerCase(), entry]))
+  try {
+    for (const entry of await listInterests()) {
+      if (entry.custom) continue
+      merged.set(entry.name.toLowerCase(), entry)
+    }
+  } catch {
+    // Seed list only.
+  }
+  return [...merged.values()].sort(byName)
 }
 
 /**
@@ -92,8 +132,9 @@ export async function createInterest(input: {
     createdBy: input.createdBy,
   }
   await setDoc(ref, payload)
-  const created = await getDoc(ref)
-  return mapInterest(created as QueryDocumentSnapshot<DocumentData>)
+  // No read-back: the server timestamp is the only field we cannot know here,
+  // and a second round trip is not worth it for a "created at" nobody shows.
+  return { ...payload, id, createdAt: null }
 }
 
 export async function updateInterest(
