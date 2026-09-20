@@ -7,30 +7,15 @@ import { Input } from '@/components/ui/Field'
 import { InlineAlert, Spinner } from '@/components/ui/Feedback'
 import { Logo } from '@/components/layout/Logo'
 import { useAuth } from '@/hooks/useAuth'
-import { bumpInterestUsage, createInterest, listInterests } from '@/services/interestService'
+import { bumpInterestUsage, createInterest, listInterestCatalogue } from '@/services/interestService'
 import { completeOnboarding } from '@/services/userService'
 import { trackSync } from '@/services/analyticsService'
-import { SEED_INTERESTS } from '@/utils/constants'
 import { validateProfileFields } from '@/utils/validation'
 import type { Interest, ParticipationType } from '@/types'
 
 type Step = 0 | 1 | 2
 
 const STEP_TITLES = ['What are you into?', 'How do you want to join?', 'Where are you?']
-
-function seedCatalogue(): Interest[] {
-  return SEED_INTERESTS.map((seed) => ({
-    id: seed.name,
-    name: seed.name,
-    emoji: seed.emoji,
-    category: seed.category,
-    enabled: true,
-    custom: false,
-    usageCount: 0,
-    createdAt: null,
-    createdBy: '',
-  }))
-}
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
@@ -62,24 +47,9 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     let cancelled = false
-    listInterests()
+    listInterestCatalogue()
       .then((list) => {
-        if (cancelled) return
-        // The seed catalogue is always on offer. Firestore adds what admins
-        // created and can override a seed's emoji or category. Interests other
-        // members typed for themselves stay theirs, not everyone's.
-        const fromSeed = seedCatalogue()
-        const byName = new Map(fromSeed.map((entry) => [entry.name.toLowerCase(), entry]))
-        for (const entry of list) {
-          if (entry.custom) continue
-          byName.set(entry.name.toLowerCase(), entry)
-        }
-        setInterests([...byName.values()])
-      })
-      .catch(() => {
-        // The catalogue lives in Firestore, but the seed list is good enough
-        // to get someone through onboarding when that read fails.
-        if (!cancelled) setInterests(seedCatalogue())
+        if (!cancelled) setInterests(list)
       })
       .finally(() => {
         if (!cancelled) setLoadingInterests(false)
