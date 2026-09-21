@@ -1,5 +1,6 @@
 import { arrayRemove, arrayUnion, doc, updateDoc } from 'firebase/firestore'
 import { COLLECTIONS, db, firebaseApp } from '@/firebase/config'
+import { isNativeApp } from '@/platform'
 
 /**
  * Firebase Cloud Messaging.
@@ -14,6 +15,9 @@ import { COLLECTIONS, db, firebaseApp } from '@/firebase/config'
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined
 
 export function isPushSupported(): boolean {
+  // The Android WebView exposes `serviceWorker` but has no PushManager, so web
+  // push can never be delivered there; native FCM is a separate integration.
+  if (isNativeApp) return false
   return (
     typeof window !== 'undefined' &&
     'Notification' in window &&

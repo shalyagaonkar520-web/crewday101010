@@ -18,9 +18,16 @@
     "test": "npm run test:dom && npm run test:rules",
     "test:dom": "vitest run --project dom",
     "rules:dev": "node scripts/use-rules.mjs dev && firebase deploy --only firestore:rules,storage",
-    "rules:prod": "node scripts/use-rules.mjs prod && firebase deploy --only firestore:rules,firestore:indexes,storage"
+    "rules:prod": "node scripts/use-rules.mjs prod && firebase deploy --only firestore:rules,firestore:indexes,storage",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:run": "npm run android:sync && npx cap run android",
+    "android:apk": "npm run android:sync && cd android && gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor-firebase/authentication": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "firebase": "^12.19.0",
@@ -32,6 +39,8 @@
     "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
     "@firebase/rules-unit-testing": "^5.0.2",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "^10.4.2",

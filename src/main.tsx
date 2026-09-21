@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from '@/App'
+import { isNativeApp } from '@/platform'
 import '@/index.css'
 
 const container = document.getElementById('root')
@@ -29,3 +30,21 @@ requestAnimationFrame(() => {
     window.setTimeout(() => splash.remove(), 800)
   })
 })
+
+/**
+ * Android hardware back button.
+ *
+ * Inside the native shell there is no browser chrome, so the system back
+ * button is the only way to go back. Walk the router history while there is
+ * any; at the root, send the app to the background rather than killing it,
+ * which is what people expect from an installed app and keeps the WebView
+ * (and the Firestore cache in it) warm for the next open.
+ */
+if (isNativeApp) {
+  void import('@capacitor/app').then(({ App: CapacitorApp }) => {
+    void CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+      if (canGoBack) window.history.back()
+      else void CapacitorApp.minimizeApp()
+    })
+  })
+}

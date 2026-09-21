@@ -249,6 +249,65 @@ npm run deploy             # build + deploy hosting, rules, indexes and function
 
 ---
 
+## Android app
+
+The same codebase ships as an Android app. [Capacitor](https://capacitorjs.com)
+loads the production web build (`dist/`) into a WebView inside a native shell;
+the native project lives in [`android/`](android/) and opens directly in
+Android Studio. There is one codebase, one Firebase project and one set of
+security rules -- the app is the website in a different wrapper.
+
+### Build and run
+
+```bash
+npm run android:sync   # builds the web app and copies it into android/
+npm run android:open   # opens android/ in Android Studio
+```
+
+Then press **Run** in Android Studio with a device or emulator selected. Re-run
+`npm run android:sync` after every change to the web code -- Android Studio
+does not rebuild the web app for you. `npm run android:apk` produces
+`android/app/build/outputs/apk/debug/app-debug.apk` from the command line.
+
+### Google sign-in on Android (one-time setup)
+
+Everything except Google sign-in works out of the box. A WebView cannot open
+the OAuth popup the website uses, so on Android the native Google Sign-In
+sheet runs instead and hands its token to the Firebase JS SDK
+(`src/services/authService.ts`). That native path needs the app registered
+with Firebase:
+
+1. **Firebase console -> Project settings -> Your apps -> Add app -> Android.**
+   Package name `app.crewday`.
+2. **Add the debug signing SHA-1.** Get it with
+   `cd android && gradlew signingReport` (look for `Variant: debug`), or from
+   Android Studio: Gradle panel -> app -> Tasks -> android -> signingReport.
+   Without it Google sign-in fails with `DEVELOPER_ERROR` / error code 10.
+3. **Download `google-services.json`** and put it at
+   `android/app/google-services.json`. The Gradle build applies the Google
+   Services plugin only when this file exists, so the app builds either way.
+4. `npm run android:sync` and run again.
+
+Before publishing, add the release keystore's SHA-1 too, and the Play
+App Signing certificate's SHA-1 once Play generates it.
+
+### What differs from the website
+
+| Area | Website | Android app |
+| --- | --- | --- |
+| Google sign-in | Firebase popup | Native Google sheet (needs setup above) |
+| Push notifications | Web push via service worker | Off (`isPushSupported()` returns false in the shell). Native FCM is a follow-up. |
+| Share button | Web Share API | Falls back to copying the link |
+| QR scanning | Camera via `getUserMedia` | Same; the manifest declares `CAMERA` and Android prompts on first use |
+| Back button | Browser | Hardware back walks the router history, then backgrounds the app |
+| Origin | Your domain | `https://localhost` -- already an authorised Firebase Auth domain |
+
+Email links (verification, password reset) still open in the phone's browser,
+not the app; wiring Android App Links for them is on the list in
+[Known limits and next steps](#known-limits-and-next-steps).
+
+---
+
 ## Architecture
 
 ```text

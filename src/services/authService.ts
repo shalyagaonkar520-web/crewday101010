@@ -2,6 +2,7 @@ import {
   createUserWithEmailAndPassword,
   deleteUser,
   EmailAuthProvider,
+  GoogleAuthProvider,
   linkWithCredential,
   linkWithPopup,
   reauthenticateWithCredential,
@@ -9,14 +10,18 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   signInAnonymously,
+  signInWithCredential,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
   updatePassword,
   updateProfile,
+  type AuthCredential,
   type User,
+  type UserCredential,
 } from 'firebase/auth'
 import { auth, firebaseApp, googleProvider } from '@/firebase/config'
+import { isNativeApp } from '@/platform'
 import {
   anonymiseUserProfile,
   ensureUserProfile,
@@ -51,6 +56,40 @@ function assertNotSuspended(profile: UserProfile | null): void {
 }
 
 /**
+ * Google identity, obtained the way the current platform allows.
+ *
+ * In a browser the Firebase SDK opens its own popup. Inside the Android app
+ * there is no popup to open -- a WebView cannot spawn one -- so the native
+ * Google Sign-In sheet runs instead (via the Capacitor Firebase plugin) and
+ * hands back an ID token. Either way the result is a credential the Firebase
+ * JS SDK signs in with, so auth state lives in exactly one place.
+ */
+async function nativeGoogleCredential(): Promise<AuthCredential> {
+  const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication')
+  const result = await FirebaseAuthentication.signInWithGoogle({ skipNativeAuth: true })
+  const idToken = result.credential?.idToken
+  if (!idToken) {
+    throw new AuthError('auth/popup-closed-by-user', 'Google sign-in was cancelled.')
+  }
+  return GoogleAuthProvider.credential(idToken, result.credential?.accessToken)
+}
+
+async function googleSignIn(): Promise<UserCredential> {
+  if (isNativeApp) return signInWithCredential(auth, await nativeGoogleCredential())
+  return signInWithPopup(auth, googleProvider)
+}
+
+async function googleLink(user: User): Promise<UserCredential> {
+  if (isNativeApp) return linkWithCredential(user, await nativeGoogleCredential())
+  return linkWithPopup(user, googleProvider)
+}
+
+async function googleReauthenticate(user: User): Promise<UserCredential> {
+  if (isNativeApp) return reauthenticateWithCredential(user, await nativeGoogleCredential())
+  return reauthenticateWithPopup(user, googleProvider)
+}
+
+/**
  * Google sign-in.
  *
  * If the current session is a guest, this *links* the Google identity to the
@@ -64,7 +103,7 @@ export async function signInWithGoogle(): Promise<UserProfile> {
 
   if (guest) {
     try {
-      const linked = await linkWithPopup(guest, googleProvider)
+      const linked = await googleLink(guest)
       await upgradeGuestProfile(linked.user.uid, {
         name: linked.user.displayName,
         email: linked.user.email,
@@ -80,7 +119,7 @@ export async function signInWithGoogle(): Promise<UserProfile> {
     }
   }
 
-  const credential = await signInWithPopup(auth, googleProvider)
+  const credential = await googleSignIn()
   const profile = await ensureUserProfile(credential.user)
   assertNotSuspended(profile)
   trackSync('login_completed', { method: 'google' })
@@ -174,6 +213,13 @@ export async function changePassword(currentPassword: string, newPassword: strin
 
 export async function logout(): Promise<void> {
   await signOut(auth)
+  if (isNativeApp) {
+    // Also drop the native Google session, otherwise the next tap on "Continue
+    // with Google" silently reuses the last account instead of asking.
+    await import('@capacitor-firebase/authentication')
+      .then(({ FirebaseAuthentication }) => FirebaseAuthentication.signOut())
+      .catch(() => undefined)
+  }
 }
 
 /** True when the signed-in account uses email/password rather than Google. */
@@ -196,7 +242,7 @@ async function reauthenticate(user: User, password?: string): Promise<void> {
     await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password))
     return
   }
-  await reauthenticateWithPopup(user, googleProvider)
+  await googleReauthenticate(user)
 }
 
 export interface DeleteAccountResult {
