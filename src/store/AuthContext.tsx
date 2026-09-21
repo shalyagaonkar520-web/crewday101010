@@ -25,6 +25,9 @@ export interface AuthState {
   refreshProfile: () => Promise<void>
 }
 
+/** How long to wait for the profile before rendering the app without it. */
+const PROFILE_LOAD_TIMEOUT_MS = 8_000
+
 export const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -54,11 +57,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     trackSync('app_open')
 
+    // The loading gate must never depend on a Firestore round-trip finishing.
+    // On a spent free-plan quota the SDK retries RESOURCE_EXHAUSTED forever,
+    // so neither the read nor the write inside `ensureUserProfile` ever
+    // settles -- which pinned `loading` at true and left every route stuck on
+    // <LoadingScreen /> for good. The profile listener releases the gate, and
+    // a watchdog releases it anyway if Firestore never answers at all.
+    let watchdog: ReturnType<typeof setTimeout> | undefined
+
     const unsubscribeAuth = onAuthStateChanged(
       auth,
-      async (nextUser) => {
+      (nextUser) => {
         profileUnsubscribe.current?.()
         profileUnsubscribe.current = null
+        clearTimeout(watchdog)
         setUser(nextUser)
 
         if (!nextUser) {
@@ -68,44 +80,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return
         }
 
+        // Bounded window for the profile to arrive. If it does not, the app
+        // still renders -- signed in, profile missing, error shown -- instead
+        // of spinning indefinitely.
+        watchdog = setTimeout(() => {
+          setError('We could not load your profile. Check your connection and try again.')
+          setLoading(false)
+        }, PROFILE_LOAD_TIMEOUT_MS)
+
         // Listen first, then make sure the document exists. The listener
         // paints from the IndexedDB cache straight away on a repeat visit, and
         // for a brand-new account it fires with the locally pending write the
-        // moment `ensureUserProfile` issues it — so nobody waits on the server
+        // moment `ensureUserProfile` issues it -- so nobody waits on the server
         // acknowledging a write, which on a spent write quota never comes.
         profileUnsubscribe.current = subscribeToUserProfile(
           nextUser.uid,
           (nextProfile) => {
             setProfile(nextProfile)
             if (nextProfile) {
+              clearTimeout(watchdog)
               setError(null)
               setLoading(false)
             }
           },
           () => {
+            clearTimeout(watchdog)
             setError('We could not load your profile. Check your connection and try again.')
             setLoading(false)
           },
         )
 
-        try {
-          // Guarantees a profile document exists before anything reads it —
-          // covers Google sign-in, a first email sign-up and any account whose
-          // document was removed underneath it.
-          await ensureUserProfile(nextUser)
-        } catch {
+        // Deliberately not awaited. `ensureUserProfile` both reads and writes,
+        // and either half can hang forever on a spent quota; the listener above
+        // is what releases the gate, so this only needs to report failure.
+        void ensureUserProfile(nextUser).catch(() => {
           setError('We could not load your profile. Check your connection and try again.')
-        } finally {
-          setLoading(false)
-        }
+        })
       },
       () => {
+        clearTimeout(watchdog)
         setError('Authentication is unavailable right now.')
         setLoading(false)
       },
     )
 
     return () => {
+      clearTimeout(watchdog)
       unsubscribeAuth()
       profileUnsubscribe.current?.()
       profileUnsubscribe.current = null
