@@ -93,7 +93,9 @@ export default function SettingsPage() {
   const [pushBusy, setPushBusy] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
+  // `/settings#delete` (from the public /delete-account page) lands straight
+  // on the confirmation instead of making people hunt for the row.
+  const [deleteOpen, setDeleteOpen] = useState(() => window.location.hash === '#delete')
 
   if (!profile || !user) return null
 

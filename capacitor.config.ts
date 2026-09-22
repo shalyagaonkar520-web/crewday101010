@@ -30,6 +30,20 @@ const config: CapacitorConfig = {
       skipNativeAuth: true,
       providers: ['google.com'],
     },
+    SystemBars: {
+      // targetSdk 36 draws edge-to-edge by default. `index.html` deliberately
+      // does NOT declare viewport-fit=cover, so Capacitor pads the WebView by
+      // the system-bar insets itself: the page, and every full-screen overlay
+      // in it (the Razorpay checkout sheet above all), stays clear of the
+      // status bar and the gesture bar. The strip behind the bars shows the
+      // window background, which styles.xml sets to the app canvas colour.
+      insetsHandling: 'css',
+      initialViewportFitValueHint: 'contain',
+      // The app is light everywhere, so the status bar icons must be dark
+      // regardless of the phone's theme -- DEFAULT followed the system and
+      // rendered white icons on the pink-white header in dark mode.
+      style: 'LIGHT',
+    },
   },
 }
 

@@ -205,6 +205,16 @@ service cloud.firestore {
         && (event.eventTypes.hasAny(['both']) || event.eventTypes.hasAny([data.participationType]));
     }
 
+    // Account deletion: a member may blank out their own contact details on a
+    // registration -- to exactly these values, and nothing else -- so the
+    // organiser keeps an anonymous headcount and no personal data lingers.
+    function isSelfScrub() {
+      return changedKeys().hasOnly(['name', 'email', 'phone', 'updatedAt'])
+        && request.resource.data.name == 'Deleted user'
+        && request.resource.data.email == ''
+        && request.resource.data.phone == '';
+    }
+
     // A member may cancel their own seat, and nothing else.
     function isSelfCancellation() {
       return changedKeys().hasOnly([
@@ -228,6 +238,7 @@ service cloud.firestore {
           && resource.data.userId == uid()
           && (
             isSelfCancellation()
+            || isSelfScrub()
             // Re-registering after cancelling rewrites the same document.
             || (
               resource.data.registrationStatus == 'cancelled'
@@ -256,8 +267,17 @@ service cloud.firestore {
         || (
           isSignedIn()
           && resource.data.userId == uid()
-          && changedKeys().hasOnly(['status'])
-          && request.resource.data.status == 'left'
+          && (
+            (changedKeys().hasOnly(['status']) && request.resource.data.status == 'left')
+            // Account deletion: leave the queue and blank the contact details.
+            || (
+              changedKeys().hasOnly(['status', 'name', 'email', 'phone'])
+              && request.resource.data.status == 'left'
+              && request.resource.data.name == 'Deleted user'
+              && request.resource.data.email == ''
+              && request.resource.data.phone == ''
+            )
+          )
         );
 
       allow delete: if isAdmin();

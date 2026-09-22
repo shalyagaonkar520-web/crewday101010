@@ -402,7 +402,31 @@ export const anonymiseDeletedUser = functionsV1
       updatedAt: FieldValue.serverTimestamp(),
     })
 
-    logger.info(`Anonymised profile for deleted auth user ${user.uid}`)
+    // Registrations and waitlist entries carry a copy of the contact details.
+    // The app scrubs them itself when a member deletes from Settings; this
+    // covers deletions made from the Firebase console, and any document the
+    // client could not reach.
+    const scrub = { name: 'Deleted user', email: '', phone: '' }
+    const [registrations, waitlists] = await Promise.all([
+      db.collection('registrations').where('userId', '==', user.uid).get(),
+      db.collection('waitlists').where('userId', '==', user.uid).get(),
+    ])
+    const documents = [
+      ...registrations.docs.map((entry) => ({
+        ref: entry.ref,
+        data: { ...scrub, updatedAt: FieldValue.serverTimestamp() },
+      })),
+      ...waitlists.docs.map((entry) => ({ ref: entry.ref, data: { ...scrub, status: 'left' } })),
+    ]
+    for (let index = 0; index < documents.length; index += 400) {
+      const batch = db.batch()
+      for (const entry of documents.slice(index, index + 400)) batch.update(entry.ref, entry.data)
+      await batch.commit()
+    }
+
+    logger.info(
+      `Anonymised profile for deleted auth user ${user.uid} (${registrations.size} registration(s), ${waitlists.size} waitlist entries)`,
+    )
   })
 
 
@@ -536,3 +560,9 @@ export const sendPasswordReset = onCall<{ email: string }>(async (request) => {
 
   return { ok: true }
 })
+
+/* -------------------------------------------------------------------------- */
+/*                               Payments                                     */
+/* -------------------------------------------------------------------------- */
+
+export { createPaymentOrder, verifyPayment, razorpayWebhook } from './payments'

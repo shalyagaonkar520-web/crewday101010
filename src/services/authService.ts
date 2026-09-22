@@ -66,12 +66,48 @@ function assertNotSuspended(profile: UserProfile | null): void {
  */
 async function nativeGoogleCredential(): Promise<AuthCredential> {
   const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication')
-  const result = await FirebaseAuthentication.signInWithGoogle({ skipNativeAuth: true })
+  let result: Awaited<ReturnType<typeof FirebaseAuthentication.signInWithGoogle>>
+  try {
+    result = await FirebaseAuthentication.signInWithGoogle({ skipNativeAuth: true })
+  } catch (caught) {
+    throw translateNativeGoogleError(caught)
+  }
   const idToken = result.credential?.idToken
   if (!idToken) {
     throw new AuthError('auth/popup-closed-by-user', 'Google sign-in was cancelled.')
   }
   return GoogleAuthProvider.credential(idToken, result.credential?.accessToken)
+}
+
+/**
+ * The native plugin rejects with Google Play Services status codes baked into
+ * the message rather than Firebase `auth/*` codes, so the login screen would
+ * otherwise print "10: " or "12501: " verbatim. Map the ones people hit.
+ */
+function translateNativeGoogleError(caught: unknown): Error {
+  const message = String((caught as { message?: string })?.message ?? caught ?? '')
+  // 12501 = SIGN_IN_CANCELLED, 16 = CANCELED (sheet dismissed / no account chosen).
+  if (/(12501|16)/.test(message) || /cancel/i.test(message)) {
+    return new AuthError('auth/popup-closed-by-user', 'Sign in was cancelled.')
+  }
+  // 10 = DEVELOPER_ERROR: the APK's signing SHA-1 is not registered in Firebase.
+  if (/10/.test(message) || /developer/i.test(message)) {
+    return new AuthError(
+      'auth/native-misconfigured',
+      'Google sign-in is not set up for this build of the app yet. Sign in with email, or contact support.',
+    )
+  }
+  // 7 = NETWORK_ERROR.
+  if (/7/.test(message) || /network/i.test(message)) {
+    return new AuthError('auth/network-request-failed', 'Network problem. Check your connection and try again.')
+  }
+  if (/not enabled|not available/i.test(message)) {
+    return new AuthError(
+      'auth/native-misconfigured',
+      'Google sign-in is not available in this build of the app. Sign in with email instead.',
+    )
+  }
+  return caught instanceof Error ? caught : new AuthError('auth/native-failed', message || 'Google sign-in failed.')
 }
 
 async function googleSignIn(): Promise<UserCredential> {
@@ -264,7 +300,9 @@ export async function deleteAccount(password?: string): Promise<DeleteAccountRes
 
   await reauthenticate(user, password)
 
-  const { collection, getDocs, query, where } = await import('firebase/firestore')
+  const { collection, doc, getDocs, query, serverTimestamp, updateDoc, where } = await import(
+    'firebase/firestore'
+  )
   const { COLLECTIONS, db } = await import('@/firebase/config')
   const { todayISO } = await import('@/utils/format')
 
@@ -286,6 +324,30 @@ export async function deleteAccount(password?: string): Promise<DeleteAccountRes
       // Already checked in or otherwise locked: leave the record alone.
     }
   }
+
+  // Strip name/email/phone from every registration and waitlist entry this
+  // account ever made (past ones included). The security rules allow exactly
+  // this write and nothing else, so the organiser keeps an anonymous
+  // headcount while no personal data outlives the account. Best effort per
+  // document: one locked record must not block the deletion.
+  const SCRUB = { name: 'Deleted user', email: '', phone: '' }
+  const [allRegistrations, allWaitlists] = await Promise.all([
+    getDocs(query(collection(db, COLLECTIONS.registrations), where('userId', '==', user.uid))),
+    getDocs(query(collection(db, COLLECTIONS.waitlists), where('userId', '==', user.uid))),
+  ])
+  await Promise.all([
+    ...allRegistrations.docs.map((entry) =>
+      updateDoc(doc(db, COLLECTIONS.registrations, entry.id), {
+        ...SCRUB,
+        updatedAt: serverTimestamp(),
+      }).catch(() => undefined),
+    ),
+    ...allWaitlists.docs.map((entry) =>
+      updateDoc(doc(db, COLLECTIONS.waitlists, entry.id), { ...SCRUB, status: 'left' }).catch(
+        () => undefined,
+      ),
+    ),
+  ])
 
   await anonymiseUserProfile(user.uid)
   await deleteUser(user)

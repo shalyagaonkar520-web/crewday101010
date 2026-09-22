@@ -108,3 +108,10 @@ export const ADMIN_PAGE_SIZE = 25
 
 /** Minimum gap (minutes) before start time at which check-in opens. */
 export const CHECKIN_WINDOW_MINUTES = 180
+
+/**
+ * Where privacy and account-deletion requests go. Shown on the public
+ * /delete-account page that Google Play links to, so it must be a mailbox
+ * somebody actually reads.
+ */
+export const SUPPORT_EMAIL = 'shalyagaonkar@gmail.com'

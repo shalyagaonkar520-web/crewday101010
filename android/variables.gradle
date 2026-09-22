@@ -13,4 +13,10 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+
+    // @capacitor-firebase/authentication compiles its Google Sign-In handler
+    // only when this is true. Without it the plugin ships without the provider
+    // and every "Continue with Google" tap in the APK is rejected with
+    // "Google Sign-In is not enabled" -- the login failure seen on device.
+    rgcfaIncludeGoogle = true
 }

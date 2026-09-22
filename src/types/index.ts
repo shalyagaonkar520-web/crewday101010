@@ -174,6 +174,23 @@ export type PaymentStatus = 'not_required' | 'pending' | 'paid' | 'failed' | 're
 
 export type AttendanceStatus = 'not_checked_in' | 'checked_in' | 'no_show'
 
+/**
+ * Payment provider bookkeeping on a registration. Written only by the Cloud
+ * Functions (Admin SDK) -- the client reads it to resume a checkout, never
+ * writes it, and the security rules do not list these keys as user-editable.
+ */
+export interface RegistrationPayment {
+  provider: 'razorpay'
+  orderId: string
+  paymentId?: string
+  /** Smallest currency unit (paise for INR). */
+  amount: number
+  currency: string
+  /** Razorpay's own error description when the last attempt failed. */
+  failureReason?: string
+  paidAt?: FireDate
+}
+
 export interface Registration {
   id: string
   /** Human readable ticket code shown to the attendee, e.g. CD-2026-8F4A92. */
@@ -194,6 +211,7 @@ export interface Registration {
   currency: string
   paymentStatus: PaymentStatus
   registrationStatus: RegistrationStatus
+  payment?: RegistrationPayment
   /** Secret, high entropy value encoded in the QR. Never displayed as text. */
   qrToken: string
   attendanceStatus: AttendanceStatus

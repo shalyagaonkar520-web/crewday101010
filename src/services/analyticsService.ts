@@ -27,6 +27,10 @@ export type AnalyticsEvent =
   | 'event_cancelled'
   | 'event_published'
   | 'feedback_submitted'
+  | 'payment_started'
+  | 'payment_completed'
+  | 'payment_failed'
+  | 'payment_cancelled'
 
 let analyticsPromise: Promise<Analytics | null> | null = null
 

@@ -52,7 +52,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-dvh bg-ink-50">
-      <header className="sticky top-0 z-40 border-b border-ink-100 bg-white/85 backdrop-blur-lg">
+      <header className="sticky top-0 z-40 border-b border-ink-100 bg-white/85 pt-safe backdrop-blur-lg">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <Logo />
           <div className="flex items-center gap-2">
@@ -225,6 +225,9 @@ export default function LandingPage() {
             </Link>
             <Link to="/privacy" className="hover:text-ink-900">
               Privacy
+            </Link>
+            <Link to="/delete-account" className="hover:text-ink-900">
+              Delete account
             </Link>
             <Link to="/admin/login" className="hover:text-ink-900">
               Organiser login

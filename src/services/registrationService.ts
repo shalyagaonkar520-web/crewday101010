@@ -68,6 +68,7 @@ export function mapRegistration(
     currency: data.currency ?? 'INR',
     paymentStatus: (data.paymentStatus as PaymentStatus) ?? 'not_required',
     registrationStatus: (data.registrationStatus as RegistrationStatus) ?? 'confirmed',
+    payment: data.payment ?? undefined,
     qrToken: data.qrToken ?? '',
     attendanceStatus: (data.attendanceStatus as AttendanceStatus) ?? 'not_checked_in',
     registeredAt: data.registeredAt ?? null,
@@ -210,9 +211,12 @@ export async function registerForEvent(input: RegistrationInput): Promise<Regist
 }
 
 /**
- * Mark a pending-payment registration as paid. Kept here so a payment provider
- * can be wired in later by calling this from a verified server webhook — the
- * client never gets to flip `paid` under the security rules.
+ * Mark a pending-payment registration as paid.
+ *
+ * Only an organiser can call this successfully -- the security rules never let
+ * a member flip their own `paid`. Razorpay payments go through the
+ * `verifyPayment` / `razorpayWebhook` Cloud Functions instead (see
+ * `paymentService`); this remains for manual cash/UPI-on-the-day settlement.
  */
 export async function confirmPaidRegistration(registrationId: string): Promise<void> {
   const { updateDoc } = await import('firebase/firestore')

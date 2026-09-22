@@ -133,6 +133,10 @@ export function authErrorMessage(code: string): string {
       return 'For your security, please sign in again before making this change.'
     case 'auth/operation-not-allowed':
       return 'This sign in method is not enabled for the project yet.'
+    case 'auth/native-misconfigured':
+      return 'Google sign-in is not set up for this build of the app yet. Sign in with email, or contact support.'
+    case 'auth/native-failed':
+      return 'Google sign-in failed. Please try again, or sign in with email.'
     default:
       return 'Something went wrong. Please try again.'
   }

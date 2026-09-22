@@ -106,7 +106,7 @@ export function AdminLayout() {
       </aside>
 
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-ink-800 bg-ink-950 px-4 lg:hidden">
+      <div className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-ink-800 bg-ink-950 px-4 pt-safe [box-sizing:content-box] lg:hidden">
         <Link to="/admin">
           <Logo variant="light" />
         </Link>

@@ -465,6 +465,31 @@ describe('registrations', () => {
       )
     })
 
+    // Account deletion blanks the contact details on old tickets. Only those
+    // exact values are allowed -- a member cannot use the same door to rename
+    // themselves or swap in a different email.
+    it('lets the owner scrub their contact details on deletion', async () => {
+      await assertSucceeds(
+        updateDoc(doc(asMember(), 'registrations', registrationId), {
+          name: 'Deleted user',
+          email: '',
+          phone: '',
+          updatedAt: serverTimestamp(),
+        }),
+      )
+    })
+
+    it('blocks rewriting contact details to anything else', async () => {
+      await assertFails(
+        updateDoc(doc(asMember(), 'registrations', registrationId), {
+          name: 'Someone Else',
+          email: 'else@example.com',
+          phone: '',
+          updatedAt: serverTimestamp(),
+        }),
+      )
+    })
+
     it('blocks the owner from checking themselves in', async () => {
       await assertFails(
         updateDoc(doc(asMember(), 'registrations', registrationId), {

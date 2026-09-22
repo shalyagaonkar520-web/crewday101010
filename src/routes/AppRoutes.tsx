@@ -52,6 +52,8 @@ const TermsPage = lazy(() =>
 const PrivacyPage = lazy(() =>
   import('@/pages/legal/Legal').then((module) => ({ default: module.PrivacyPage })),
 )
+// Public, no sign-in needed: Google Play links to it from the store listing.
+const DeleteAccountPage = lazy(() => import('@/pages/legal/DeleteAccount'))
 
 export function AppRoutes() {
   return (
@@ -88,6 +90,7 @@ export function AppRoutes() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/delete-account" element={<DeleteAccountPage />} />
 
         {/* Onboarding sits outside the app shell: no nav until the profile exists */}
         <Route

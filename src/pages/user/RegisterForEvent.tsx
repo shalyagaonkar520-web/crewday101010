@@ -265,10 +265,10 @@ export default function RegisterForEventPage() {
         {formError ? <InlineAlert tone="danger">{formError}</InlineAlert> : null}
 
         {event.price > 0 ? (
-          <InlineAlert tone="warning">
-            This is a paid event ({formatPrice(event.price, event.currency)}). Your seat is held as{' '}
-            <strong>payment pending</strong> until payment is completed — online payment is coming
-            soon, and the organiser will contact you with the details.
+          <InlineAlert tone="info">
+            This is a paid event ({formatPrice(event.price, event.currency)}). Your seat is held
+            for you first, then you pay securely with UPI, card or netbanking on the next screen.
+            The QR ticket activates the moment payment goes through.
           </InlineAlert>
         ) : null}
 
@@ -279,7 +279,7 @@ export default function RegisterForEventPage() {
           loading={submitting}
           disabled={!availability.canRegister}
         >
-          Confirm registration
+          {event.price > 0 ? 'Hold my seat & pay' : 'Confirm registration'}
         </Button>
 
         <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ink-500">

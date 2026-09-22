@@ -4,6 +4,7 @@ import { CalendarPlus, PartyPopper } from 'lucide-react'
 import { Button, LinkButton } from '@/components/ui/Button'
 import { EmptyState, LoadingScreen } from '@/components/ui/Feedback'
 import { QRTicket } from '@/components/qr/QRTicket'
+import { PayNowButton } from '@/components/events/PayNowButton'
 import { getRegistration } from '@/services/registrationService'
 import { combineDateTime, formatEventDate, formatTime } from '@/utils/format'
 import type { Registration } from '@/types'
@@ -53,6 +54,14 @@ export default function RegistrationSuccessPage() {
       .finally(() => setLoading(false))
   }, [registrationId])
 
+  // After a successful checkout the server has already flipped the document;
+  // re-read it so the QR activates on this screen without a navigation.
+  const refresh = () => {
+    void getRegistration(registrationId)
+      .then((next) => next && setRegistration(next))
+      .catch(() => undefined)
+  }
+
   if (loading) return <LoadingScreen label="Creating your ticket…" />
   if (!registration) {
     return (
@@ -66,6 +75,7 @@ export default function RegistrationSuccessPage() {
   }
 
   const confirmed = registration.registrationStatus === 'confirmed'
+  const awaitingPayment = registration.registrationStatus === 'pending_payment'
 
   return (
     <div className="mx-auto max-w-md">
@@ -74,7 +84,7 @@ export default function RegistrationSuccessPage() {
           <PartyPopper size={30} aria-hidden />
         </div>
         <h1 className="font-display text-3xl font-extrabold text-ink-900">
-          {confirmed ? 'Registration Confirmed 🎉' : 'Seat held for you'}
+          {confirmed ? 'Registration Confirmed 🎉' : 'Seat held — pay to confirm'}
         </h1>
         <p className="mt-2 text-ink-500">
           {confirmed
@@ -82,6 +92,12 @@ export default function RegistrationSuccessPage() {
             : 'Complete payment and your QR code activates automatically.'}
         </p>
       </div>
+
+      {awaitingPayment ? (
+        <div className="mb-5">
+          <PayNowButton registration={registration} onPaid={refresh} />
+        </div>
+      ) : null}
 
       <QRTicket registration={registration} />
 

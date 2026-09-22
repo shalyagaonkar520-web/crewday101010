@@ -211,6 +211,21 @@
   }
 }
 
+/*
+ * Safe-area padding for bars pinned to the screen edges.
+ *
+ * The Android shell insets the whole WebView natively (no viewport-fit=cover,
+ * see index.html), so `env()` reads 0px there and these are no-ops. They
+ * still matter for an installed PWA on iOS, where Safari does run the page
+ * edge-to-edge and a `sticky top-0` bar would sit under the clock.
+ */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+@utility top-safe {
+  top: env(safe-area-inset-top, 0px);
+}
+
 @utility no-scrollbar {
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;

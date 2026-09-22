@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The web app's canvas colour, so the window behind the WebView (and
+         behind the status bar on edge-to-edge devices) matches the page. -->
+    <color name="canvas">#FDF7FB</color>
+</resources>

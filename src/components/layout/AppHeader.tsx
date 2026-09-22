@@ -66,7 +66,7 @@ export function AppHeader({ showSearch = false }: { showSearch?: boolean }) {
   const navItems = isAuthenticated ? NAV : NAV.filter((item) => item.to === '/explore')
 
   return (
-    <header className="sticky top-0 z-40 bg-[#fdf7fb]">
+    <header className="sticky top-0 z-40 bg-[#fdf7fb] pt-safe">
       <div className="mx-auto max-w-6xl px-4">
         <div className="flex h-16 items-center justify-between gap-4">
           <Link to={isAuthenticated ? '/home' : '/explore'} className="shrink-0">

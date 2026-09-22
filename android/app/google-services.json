@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "695634314665",
+    "project_id": "crewday-2657d",
+    "storage_bucket": "crewday-2657d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:695634314665:android:e015bc44d3f555d1caf0b8",
+        "android_client_info": {
+          "package_name": "app.crewday"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "695634314665-e20nr5jmf5emkr373978o57g3fsf4rpp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.crewday",
+            "certificate_hash": "519ff14a0bf5e6562474a33dd8a00d41cb38c559"
+          }
+        },
+        {
+          "client_id": "695634314665-tjh7acmigjc2q92iakj1eiua619ncdio.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.crewday",
+            "certificate_hash": "a365af777a8f9b2b945d632832c5d2380fbeeb2f"
+          }
+        },
+        {
+          "client_id": "695634314665-nmrf2b2cspr7h0gebtmaf9kuem9rg3m4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQvP6E33Oi7lafNh9Jd1VGha_CQf1hyF8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "695634314665-nmrf2b2cspr7h0gebtmaf9kuem9rg3m4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

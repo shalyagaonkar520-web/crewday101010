@@ -47,7 +47,7 @@ export function AuthLayout({
         <p className="relative text-sm text-ink-400">Find your crew. Make your day.</p>
       </aside>
 
-      <main className="flex min-h-dvh flex-col justify-center bg-ink-50 px-5 py-10 sm:px-10">
+      <main className="flex min-h-dvh flex-col justify-center bg-ink-50 px-5 py-10 pt-[calc(2.5rem+env(safe-area-inset-top,0px))] pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] sm:px-10">
         <div className="mx-auto w-full max-w-md">
           <div className="mb-8 lg:hidden">
             <Link to="/explore">
