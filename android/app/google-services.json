@@ -14,11 +14,27 @@
       },
       "oauth_client": [
         {
+          "client_id": "695634314665-csdhaevd0bonpnv6s6dvdbunf6k8e3f8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.crewday",
+            "certificate_hash": "bd29a61df5db7d0e07ad9217f64ad3630a59e8ab"
+          }
+        },
+        {
           "client_id": "695634314665-e20nr5jmf5emkr373978o57g3fsf4rpp.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "app.crewday",
             "certificate_hash": "519ff14a0bf5e6562474a33dd8a00d41cb38c559"
+          }
+        },
+        {
+          "client_id": "695634314665-k1n9jv0tsfjus4m665lkbk356tkhokue.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.crewday",
+            "certificate_hash": "616b50812a06ddb1557fe5b28c6178cd0bcde78a"
           }
         },
         {
