@@ -17,8 +17,12 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing'
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
+  query,
+  where,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -1268,5 +1272,158 @@ describe('interest popularity counter', () => {
       await updateDoc(doc(context.firestore(), 'interests', 'guitar'), { usageCount: 0 })
     })
     await assertFails(updateDoc(doc(asMember(), 'interests', 'guitar'), { usageCount: -1 }))
+  })
+})
+
+describe('erasing personal details from event requests, reports and feedback', () => {
+  const scrubRequest = () => ({
+    requesterName: '',
+    requesterEmail: '',
+    requesterPhone: '',
+    updatedAt: serverTimestamp(),
+  })
+  const reportDoc = (uid: string) => ({
+    userId: uid,
+    email: `${uid}@example.com`,
+    subject: 'QR not loading',
+    message: 'It spins forever',
+    status: 'open',
+    createdAt: serverTimestamp(),
+  })
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore()
+      await setDoc(doc(db, 'eventRequests', requestId), baseRequest(MEMBER))
+      await setDoc(doc(db, 'eventRequests', 'request-other'), baseRequest(OTHER))
+      await setDoc(doc(db, 'eventRequests', 'request-done'), baseRequest(MEMBER, { status: 'approved' }))
+      await setDoc(doc(db, 'reports', 'rep-mine'), reportDoc(MEMBER))
+      await setDoc(doc(db, 'reports', 'rep-other'), reportDoc(OTHER))
+      await setDoc(doc(db, `feedback/${EVENT}__${MEMBER}`), {
+        eventId: EVENT,
+        userId: MEMBER,
+        rating: 4,
+        comment: 'Loved it, call me on 98765',
+        createdAt: serverTimestamp(),
+      })
+    })
+  })
+
+  it('lets the owner blank the requester details on a pending request', async () => {
+    await assertSucceeds(updateDoc(doc(asMember(), 'eventRequests', requestId), scrubRequest()))
+  })
+
+  it('lets the owner blank the requester details on a request that was already decided', async () => {
+    await assertSucceeds(updateDoc(doc(asMember(), 'eventRequests', 'request-done'), scrubRequest()))
+  })
+
+  it('lets the owner find their own requests with a single equality filter', async () => {
+    await assertSucceeds(
+      getDocs(query(collection(asMember(), 'eventRequests'), where('requestedBy', '==', MEMBER))),
+    )
+  })
+
+  it('does not let the owner swap in different requester details', async () => {
+    await assertFails(
+      updateDoc(doc(asMember(), 'eventRequests', requestId), { requesterName: 'Someone Else' }),
+    )
+  })
+
+  it('does not let the owner blank only some of the requester fields', async () => {
+    await assertFails(
+      updateDoc(doc(asMember(), 'eventRequests', requestId), {
+        requesterName: '',
+        requesterEmail: '',
+      }),
+    )
+  })
+
+  it('does not let request erasure carry other changes with it', async () => {
+    await assertFails(
+      updateDoc(doc(asMember(), 'eventRequests', requestId), {
+        ...scrubRequest(),
+        status: 'approved',
+      }),
+    )
+    await assertFails(
+      updateDoc(doc(asMember(), 'eventRequests', requestId), { ...scrubRequest(), capacity: 9999 }),
+    )
+  })
+
+  it("does not let a member blank somebody else's request", async () => {
+    await assertFails(updateDoc(doc(asMember(), 'eventRequests', 'request-other'), scrubRequest()))
+  })
+
+  it('lets an admin blank the requester details on any request', async () => {
+    await assertSucceeds(updateDoc(doc(asAdmin(), 'eventRequests', 'request-other'), scrubRequest()))
+  })
+
+  it('lets the owner blank the email on their own report', async () => {
+    await assertSucceeds(updateDoc(doc(asMember(), 'reports', 'rep-mine'), { email: '' }))
+  })
+
+  it('lets the owner find their own reports with a single equality filter', async () => {
+    await assertSucceeds(
+      getDocs(query(collection(asMember(), 'reports'), where('userId', '==', MEMBER))),
+    )
+  })
+
+  it("still blocks reading someone else's report", async () => {
+    await assertFails(getDoc(doc(asMember(), 'reports', 'rep-other')))
+    await assertFails(
+      getDocs(query(collection(asMember(), 'reports'), where('userId', '==', OTHER))),
+    )
+  })
+
+  it('does not let the owner put a different email on a report', async () => {
+    await assertFails(updateDoc(doc(asMember(), 'reports', 'rep-mine'), { email: 'x@example.com' }))
+  })
+
+  it('does not let report erasure carry other changes with it', async () => {
+    await assertFails(
+      updateDoc(doc(asMember(), 'reports', 'rep-mine'), { email: '', status: 'resolved' }),
+    )
+    await assertFails(
+      updateDoc(doc(asMember(), 'reports', 'rep-mine'), { email: '', userId: OTHER }),
+    )
+  })
+
+  it("does not let a member blank somebody else's report", async () => {
+    await assertFails(updateDoc(doc(asMember(), 'reports', 'rep-other'), { email: '' }))
+  })
+
+  it('lets an admin blank the email on any report', async () => {
+    await assertSucceeds(updateDoc(doc(asAdmin(), 'reports', 'rep-other'), { email: '' }))
+  })
+
+  it('lets the owner blank the comment on their own feedback', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMember(), 'feedback', `${EVENT}__${MEMBER}`), { comment: '' }),
+    )
+  })
+
+  it("does not let a member blank somebody else's feedback comment", async () => {
+    await assertFails(
+      updateDoc(doc(asOther(), 'feedback', `${EVENT}__${MEMBER}`), { comment: '' }),
+    )
+  })
+
+  it('lets an admin blank contact details on a registration and a waitlist entry', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore()
+      await setDoc(doc(db, 'registrations', registrationId), baseRegistration(MEMBER))
+      await setDoc(doc(db, 'waitlists', waitlistKey), waitlistEntry(MEMBER))
+    })
+    await assertSucceeds(
+      updateDoc(doc(asAdmin(), 'registrations', registrationId), {
+        name: '',
+        email: '',
+        phone: '',
+        updatedAt: serverTimestamp(),
+      }),
+    )
+    await assertSucceeds(
+      updateDoc(doc(asAdmin(), 'waitlists', waitlistKey), { name: '', email: '', phone: '' }),
+    )
   })
 })

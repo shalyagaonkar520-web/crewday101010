@@ -266,24 +266,45 @@ export async function cancelRegistration(registrationId: string, reason = ''): P
 }
 
 /**
- * Blank the name, email and phone copied onto every ticket and waitlist entry
- * a member holds. Used by account deletion: the profile is anonymised, so the
- * copies of their details left on registrations would otherwise outlive them.
- * The tickets themselves stay, so organiser attendance counts remain accurate.
+ * Blank the personal details copied away from a member's profile: name, email
+ * and phone on every ticket and waitlist entry, the requester details on event
+ * proposals, the contact email on problem reports and the comment on event
+ * ratings. Shared by self-service deletion (run as the member) and the admin
+ * "delete personal data" action (run as an organiser), and it must run before
+ * the profile is anonymised, which blocks the member's own writes. The tickets
+ * themselves stay, so organiser attendance counts remain accurate.
  */
 export async function eraseContactDetails(uid: string): Promise<void> {
-  const [registrations, waitlists] = await Promise.all([
-    getDocs(query(collection(db, COLLECTIONS.registrations), where('userId', '==', uid))),
-    getDocs(query(collection(db, COLLECTIONS.waitlists), where('userId', '==', uid))),
+  // Each lookup is a single equality filter on the owner field, so no
+  // composite index is needed. Reports and feedback are read back through the
+  // rules' owner-read branches.
+  const byOwner = (name: string, field: string) =>
+    getDocs(query(collection(db, name), where(field, '==', uid)))
+  const [registrations, waitlists, eventRequests, reports, feedback] = await Promise.all([
+    byOwner(COLLECTIONS.registrations, 'userId'),
+    byOwner(COLLECTIONS.waitlists, 'userId'),
+    byOwner(COLLECTIONS.eventRequests, 'requestedBy'),
+    byOwner(COLLECTIONS.reports, 'userId'),
+    byOwner(COLLECTIONS.feedback, 'userId'),
   ])
 
   const blank = { name: '', email: '', phone: '' }
+  const blankRequester = { requesterName: '', requesterEmail: '', requesterPhone: '' }
   const writes = [
     ...registrations.docs.map((entry) => ({
       ref: entry.ref,
       data: { ...blank, updatedAt: serverTimestamp() },
     })),
     ...waitlists.docs.map((entry) => ({ ref: entry.ref, data: blank })),
+    ...eventRequests.docs.map((entry) => ({
+      ref: entry.ref,
+      data: { ...blankRequester, updatedAt: serverTimestamp() },
+    })),
+    // The contact email on a problem report. The free-text message stays: it
+    // is support history, no longer tied to a name or address.
+    ...reports.docs.map((entry) => ({ ref: entry.ref, data: { email: '' } })),
+    // A rating comment is free text the member typed; drop it, keep the rating.
+    ...feedback.docs.map((entry) => ({ ref: entry.ref, data: { comment: '' } })),
   ]
 
   // Firestore batches cap at 500 writes.

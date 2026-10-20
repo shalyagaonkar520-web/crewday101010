@@ -75,6 +75,14 @@ service cloud.firestore {
         && request.resource.data.phone == '';
     }
 
+    // The same idea for the requester details copied onto an event proposal.
+    function isRequesterErasure() {
+      return changedKeys().hasOnly(['requesterName', 'requesterEmail', 'requesterPhone', 'updatedAt'])
+        && request.resource.data.requesterName == ''
+        && request.resource.data.requesterEmail == ''
+        && request.resource.data.requesterPhone == '';
+    }
+
     // Documents keyed `{parentId}__{uid}` are read by their owner before they
     // exist ("have I already registered?"). `resource` is null for a missing
     // document, so a rule that dereferences it raises an evaluation error and
@@ -245,6 +253,13 @@ service cloud.firestore {
           && resource.data.status == 'pending'
           && changedKeys().hasOnly(['status', 'updatedAt'])
           && request.resource.data.status == 'withdrawn'
+        )
+        // Account deletion blanks the requester's contact details, whatever
+        // state the proposal is in. Nothing else may change with it.
+        || (
+          isSignedIn()
+          && resource.data.requestedBy == uid()
+          && isRequesterErasure()
         );
 
       allow delete: if isAdmin();
@@ -436,13 +451,26 @@ service cloud.firestore {
     /* ------------------------------ Reports ----------------------------- */
 
     match /reports/{reportId} {
-      allow get, list: if isAdmin();
+      // A member may read back their own reports (account deletion has to
+      // find them to blank the email); the queue as a whole is admin-only.
+      allow get, list: if isAdmin()
+        || (isSignedIn() && resource.data.userId == uid());
 
       allow create: if isSignedIn()
         && request.resource.data.userId == uid()
         && request.resource.data.status == 'open';
 
-      allow update, delete: if isAdmin();
+      allow delete: if isAdmin();
+
+      // Only an admin changes a report, apart from the owner blanking the
+      // contact email copied onto it (account deletion).
+      allow update: if isAdmin()
+        || (
+          isSignedIn()
+          && resource.data.userId == uid()
+          && changedKeys().hasOnly(['email'])
+          && request.resource.data.email == ''
+        );
     }
 
     /* ------------------------------ Settings ---------------------------- */

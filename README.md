@@ -472,6 +472,11 @@ What the rules enforce (`firestore.rules`):
   hardcoded email in the rules or the client.
 - **Members read only their own data** — profile, registrations, notifications.
 - **Drafts are invisible** to anyone but an organiser.
+- **Account deletion can really erase personal data.** An owner may blank
+  *only* the contact fields copied onto their own documents, and only to an
+  empty string, with nothing else changing in the same write: name/email/phone on
+  registrations and waitlist entries, `requester*` on event proposals, and
+  `email` on problem reports. Admins can do the same for another member.
 - **Everything unmatched is denied** by a final catch-all rule.
 
 `storage.rules` restricts event images to organisers and scopes avatar uploads
@@ -551,11 +556,24 @@ exists.
   triggered on cancellation.
 - **Search is prefix + word based**, served by `searchTokens`. Good to roughly
   a few thousand events; beyond that, move to Algolia or Typesense.
-- **Deleting a member from the admin panel anonymises the profile** but cannot
-  delete their Firebase Auth account — that needs the Admin SDK. Deploy
-  `functions/` or remove the sign-in from the console. Self-service deletion
-  from Settings *does* delete the auth account.
+- **Account deletion removes contact details, not every trace.** Self-service
+  deletion (Settings) and the admin "Delete personal data" action both blank, in
+  this order: name/email/phone on the member's registrations and waitlist entries;
+  the requester name/email/phone on their event proposals; the email on their
+  problem reports; the comment on their event ratings; then they anonymise the
+  profile (name, email, phone, photo, city, interests, push tokens). Self-service
+  also deletes the Firebase Auth account. What is **not** erased: the free-text a
+  member typed into event proposals (title, description, venue) and problem
+  reports (subject, message), which may name someone and is kept as organiser
+  and support history; notifications (they hold event details, not contact
+  details); the opaque uid on tickets, ratings and interests; Firebase
+  Authentication and hosting logs; and Firestore backups or exports, which age
+  out on Google's schedule. Admin deletion cannot remove the Firebase Auth
+  account (needs the Admin SDK: deploy `functions/` or remove it in the
+  console). If the erase step fails, the deletion stops before the
+  profile is anonymised, so the member can simply retry.
 - **Analytics** logs the product funnel events listed in the brief and
-  deliberately sends no names, emails or phone numbers.
+  deliberately sends no names, emails or phone numbers, so there is nothing
+  to erase there (Google Analytics still keeps its own anonymous identifiers).
 - **Push on iOS** requires the site to be installed to the home screen; the
   Settings toggle reports this honestly instead of silently failing.
