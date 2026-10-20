@@ -16,7 +16,15 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing'
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  serverTimestamp,
+  writeBatch,
+} from 'firebase/firestore'
 
 let testEnv: RulesTestEnvironment
 
@@ -149,13 +157,17 @@ const requestId = 'request-1'
 
 const registrationId = `${EVENT}__${MEMBER}`
 
+// `firebase emulators:exec` exports FIRESTORE_EMULATOR_HOST, so the suite follows
+// whichever port the emulator actually got; 8080 is only the default.
+const [emulatorHost, emulatorPort] = (process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8080').split(':')
+
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
     projectId: 'crewday-rules-test',
     firestore: {
       rules: readFileSync('firestore.rules', 'utf8'),
-      host: '127.0.0.1',
-      port: 8080,
+      host: emulatorHost,
+      port: Number(emulatorPort),
     },
   })
 })
@@ -283,8 +295,10 @@ describe('events', () => {
     await assertSucceeds(setDoc(doc(asAdmin(), 'events', 'admin-made'), baseEvent()))
   })
 
-  it('allows a member to nudge the registration counter by one', async () => {
-    await assertSucceeds(
+  it('blocks a member nudging the counter without a registration behind it', async () => {
+    // The hole this closes: any member could move registeredCount by one,
+    // repeatedly, with no seat to show for it.
+    await assertFails(
       updateDoc(doc(asMember(), 'events', EVENT), {
         registeredCount: 1,
         participantCount: 1,
@@ -927,5 +941,332 @@ describe('unknown collections', () => {
   it('denies everything not explicitly allowed', async () => {
     await assertFails(setDoc(doc(asMember(), 'secrets', 'x'), { a: 1 }))
     await assertFails(getDoc(doc(asAdmin(), 'secrets', 'x')))
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/*  Hardening: counters follow real registrations, plus related fixes          */
+/* -------------------------------------------------------------------------- */
+
+const waitlistKey = `${EVENT}__${MEMBER}`
+
+const waitlistEntry = (uid: string, overrides: Record<string, unknown> = {}) => ({
+  eventId: EVENT,
+  userId: uid,
+  name: 'Test Member',
+  email: 'member@example.com',
+  phone: '9876543210',
+  participationType: 'participant',
+  position: 1,
+  status: 'waiting',
+  createdAt: serverTimestamp(),
+  promotedAt: null,
+  ...overrides,
+})
+
+describe('event counters follow real registrations', () => {
+  const regRef = (db: ReturnType<typeof asMember>) => doc(db, 'registrations', registrationId)
+  const eventRef = (db: ReturnType<typeof asMember>) => doc(db, 'events', EVENT)
+
+  async function seedRegistered() {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore()
+      await setDoc(doc(db, 'registrations', registrationId), baseRegistration(MEMBER))
+      await updateDoc(doc(db, 'events', EVENT), { registeredCount: 1, participantCount: 1 })
+    })
+  }
+
+  it('allows registering: the registration and the +1 land together', async () => {
+    const db = asMember()
+    const batch = writeBatch(db)
+    batch.set(regRef(db), baseRegistration(MEMBER))
+    batch.update(eventRef(db), {
+      registeredCount: 1,
+      participantCount: 1,
+      audienceCount: 0,
+      updatedAt: serverTimestamp(),
+    })
+    await assertSucceeds(batch.commit())
+  })
+
+  it('allows registering as audience and counts it as audience', async () => {
+    const db = asMember()
+    const batch = writeBatch(db)
+    batch.set(regRef(db), baseRegistration(MEMBER, { participationType: 'audience' }))
+    batch.update(eventRef(db), { registeredCount: 1, audienceCount: 1, updatedAt: serverTimestamp() })
+    await assertSucceeds(batch.commit())
+  })
+
+  it('blocks counting a participant as audience', async () => {
+    const db = asMember()
+    const batch = writeBatch(db)
+    batch.set(regRef(db), baseRegistration(MEMBER, { participationType: 'participant' }))
+    batch.update(eventRef(db), { registeredCount: 1, audienceCount: 1, updatedAt: serverTimestamp() })
+    await assertFails(batch.commit())
+  })
+
+  it('blocks bumping the counter again once already registered', async () => {
+    await seedRegistered()
+    await assertFails(updateDoc(eventRef(asMember()), { registeredCount: 2, participantCount: 2 }))
+  })
+
+  it('blocks decrementing the counter without cancelling', async () => {
+    await seedRegistered()
+    await assertFails(updateDoc(eventRef(asMember()), { registeredCount: 0, participantCount: 0 }))
+  })
+
+  it('allows cancelling: the cancellation and the -1 land together', async () => {
+    await seedRegistered()
+    const db = asMember()
+    const batch = writeBatch(db)
+    batch.update(regRef(db), {
+      registrationStatus: 'cancelled',
+      cancelledAt: serverTimestamp(),
+      cancelledReason: 'Plans changed',
+      qrToken: `revoked-${registrationId}`,
+      updatedAt: serverTimestamp(),
+    })
+    batch.update(eventRef(db), { registeredCount: 0, participantCount: 0, updatedAt: serverTimestamp() })
+    await assertSucceeds(batch.commit())
+  })
+
+  it('blocks a member from emptying an event they never registered for', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), 'events', EVENT), {
+        registeredCount: 2,
+        participantCount: 2,
+      })
+    })
+    await assertFails(updateDoc(eventRef(asMember()), { registeredCount: 1, participantCount: 1 }))
+  })
+
+  it('allows joining the waitlist with the +1 landing together', async () => {
+    const db = asMember()
+    const batch = writeBatch(db)
+    batch.set(doc(db, 'waitlists', waitlistKey), waitlistEntry(MEMBER))
+    batch.update(eventRef(db), { waitlistCount: 1, updatedAt: serverTimestamp() })
+    await assertSucceeds(batch.commit())
+  })
+
+  it('blocks bumping the waitlist counter with no waitlist entry', async () => {
+    await assertFails(updateDoc(eventRef(asMember()), { waitlistCount: 1 }))
+  })
+
+  it('still lets an admin adjust every counter', async () => {
+    await assertSucceeds(
+      updateDoc(eventRef(asAdmin()), { registeredCount: 2, checkedInCount: 1, waitlistCount: 3 }),
+    )
+  })
+})
+
+describe('admin access comes from the role, not a hardcoded email', () => {
+  const OWNER_CLAIMS = { email: 'shalyagaonkar@gmail.com', email_verified: true }
+
+  it('does not treat a verified owner email as admin without the role', async () => {
+    const db = testEnv.authenticatedContext('owner-uid', OWNER_CLAIMS).firestore()
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'users', 'owner-uid'), baseUser('owner-uid'))
+    })
+    await assertFails(getDoc(doc(db, 'users', MEMBER)))
+    await assertFails(setDoc(doc(db, 'events', 'sneaky'), baseEvent()))
+  })
+
+  it('does not let that email sign up directly as admin', async () => {
+    const db = testEnv.authenticatedContext('owner-uid', OWNER_CLAIMS).firestore()
+    await assertFails(
+      setDoc(
+        doc(db, 'users', 'owner-uid'),
+        baseUser('owner-uid', { role: 'admin', onboardingCompleted: false }),
+      ),
+    )
+  })
+
+  it('still treats a profile with role admin as admin', async () => {
+    await assertSucceeds(getDoc(doc(asAdmin(), 'users', MEMBER)))
+  })
+})
+
+describe('profile counters and self-service deletion', () => {
+  it('blocks a member from forging their own attendance count', async () => {
+    await assertFails(setDoc(doc(asMember(), 'users', MEMBER), { eventsAttended: 99 }, { merge: true }))
+  })
+
+  it('blocks a member jumping their registered count', async () => {
+    await assertFails(
+      setDoc(doc(asMember(), 'users', MEMBER), { eventsRegistered: 50 }, { merge: true }),
+    )
+  })
+
+  it('blocks a negative registered count', async () => {
+    await assertFails(
+      setDoc(doc(asMember(), 'users', MEMBER), { eventsRegistered: -1 }, { merge: true }),
+    )
+  })
+
+  it('lets a member anonymise and mark their own profile deleted', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMember(), 'users', MEMBER), {
+        name: 'Deleted user',
+        email: '',
+        phone: '',
+        photoURL: '',
+        city: '',
+        area: '',
+        interests: [],
+        fcmTokens: [],
+        status: 'deleted',
+        onboardingCompleted: false,
+        updatedAt: serverTimestamp(),
+      }),
+    )
+  })
+
+  it('does not let a deleted profile come back to life', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), 'users', MEMBER), { status: 'deleted' })
+    })
+    await assertFails(updateDoc(doc(asMember(), 'users', MEMBER), { status: 'active' }))
+  })
+
+  it('does not let a member suspend themselves', async () => {
+    await assertFails(updateDoc(doc(asMember(), 'users', MEMBER), { status: 'suspended' }))
+  })
+})
+
+describe('organiser promotes someone off the waitlist', () => {
+  it('lets an admin create a registration for a waitlisted member', async () => {
+    await assertSucceeds(
+      setDoc(doc(asAdmin(), 'registrations', `${EVENT}__${OTHER}`), baseRegistration(OTHER)),
+    )
+  })
+
+  it('still rejects an admin registration that disagrees with the event price', async () => {
+    await assertFails(
+      setDoc(
+        doc(asAdmin(), 'registrations', `${EVENT}__${OTHER}`),
+        baseRegistration(OTHER, { price: 500 }),
+      ),
+    )
+  })
+
+  it('rejects an admin registration whose id does not match the member', async () => {
+    await assertFails(
+      setDoc(doc(asAdmin(), 'registrations', `${EVENT}__${MEMBER}`), baseRegistration(OTHER)),
+    )
+  })
+
+  it('rejects an admin registering a suspended member', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), 'users', OTHER), { status: 'suspended' })
+    })
+    await assertFails(
+      setDoc(doc(asAdmin(), 'registrations', `${EVENT}__${OTHER}`), baseRegistration(OTHER)),
+    )
+  })
+
+  it('does not extend that power to an ordinary member', async () => {
+    await assertFails(
+      setDoc(doc(asMember(), 'registrations', `${EVENT}__${OTHER}`), baseRegistration(OTHER)),
+    )
+  })
+})
+
+describe('leaving and rejoining the waitlist', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(
+        doc(context.firestore(), 'waitlists', waitlistKey),
+        waitlistEntry(MEMBER, { status: 'left' }),
+      )
+    })
+  })
+
+  it('lets a member who left join again', async () => {
+    await assertSucceeds(setDoc(doc(asMember(), 'waitlists', waitlistKey), waitlistEntry(MEMBER)))
+  })
+
+  it('does not let a member rejoin as somebody else', async () => {
+    await assertFails(
+      setDoc(doc(asMember(), 'waitlists', waitlistKey), waitlistEntry(MEMBER, { userId: OTHER })),
+    )
+  })
+
+  it('does not let a member jump straight to promoted', async () => {
+    await assertFails(
+      setDoc(doc(asMember(), 'waitlists', waitlistKey), waitlistEntry(MEMBER, { status: 'promoted' })),
+    )
+  })
+})
+
+describe('erasing personal details from tickets and waitlist entries', () => {
+  const scrub = () => ({ name: '', email: '', phone: '', updatedAt: serverTimestamp() })
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore()
+      await setDoc(doc(db, 'registrations', registrationId), baseRegistration(MEMBER))
+      await setDoc(doc(db, 'waitlists', waitlistKey), waitlistEntry(MEMBER))
+    })
+  })
+
+  it('lets the owner blank the contact details on their registration', async () => {
+    await assertSucceeds(updateDoc(doc(asMember(), 'registrations', registrationId), scrub()))
+  })
+
+  it('lets the owner blank the contact details on their waitlist entry', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMember(), 'waitlists', waitlistKey), { name: '', email: '', phone: '' }),
+    )
+  })
+
+  it('does not let the owner swap in different contact details', async () => {
+    await assertFails(
+      updateDoc(doc(asMember(), 'registrations', registrationId), { name: 'Someone Else' }),
+    )
+  })
+
+  it('does not let that blanking carry other changes with it', async () => {
+    await assertFails(
+      updateDoc(doc(asMember(), 'registrations', registrationId), {
+        ...scrub(),
+        attendanceStatus: 'checked_in',
+      }),
+    )
+  })
+
+  it("does not let a member blank somebody else's registration", async () => {
+    await assertFails(updateDoc(doc(asOther(), 'registrations', registrationId), scrub()))
+  })
+})
+
+describe('interest popularity counter', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'interests', 'guitar'), {
+        name: 'Guitar',
+        emoji: '🎸',
+        category: 'Music',
+        enabled: true,
+        custom: false,
+        usageCount: 5,
+        createdBy: ADMIN,
+      })
+    })
+  })
+
+  it('lets a member move it by one either way', async () => {
+    await assertSucceeds(updateDoc(doc(asMember(), 'interests', 'guitar'), { usageCount: 6 }))
+    await assertSucceeds(updateDoc(doc(asMember(), 'interests', 'guitar'), { usageCount: 5 }))
+  })
+
+  it('blocks a member setting it to an arbitrary number', async () => {
+    await assertFails(updateDoc(doc(asMember(), 'interests', 'guitar'), { usageCount: 99999 }))
+  })
+
+  it('blocks a negative count', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), 'interests', 'guitar'), { usageCount: 0 })
+    })
+    await assertFails(updateDoc(doc(asMember(), 'interests', 'guitar'), { usageCount: -1 }))
   })
 })

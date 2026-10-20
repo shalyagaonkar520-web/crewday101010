@@ -38,12 +38,14 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/users/$(userId));
     }
 
+    // Organiser access comes from the `role` field on the profile, and nowhere
+    // else. The first organiser is promoted by hand in the console (see the
+    // README); there is deliberately no hardcoded email that bypasses this.
     function isAdmin() {
       return isSignedIn()
-        && (
-          (userExists(uid()) && userData(uid()).role == 'admin' && userData(uid()).status == 'active')
-          || (request.auth.token.email == 'shalyagaonkar@gmail.com' && request.auth.token.email_verified == true)
-        );
+        && userExists(uid())
+        && userData(uid()).role == 'admin'
+        && userData(uid()).status == 'active';
     }
 
     // Signed in, with a profile that has not been suspended or deleted.
@@ -57,6 +59,20 @@ service cloud.firestore {
 
     function changedKeys() {
       return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function withinOne(before, after) {
+      return after >= before - 1 && after <= before + 1;
+    }
+
+    // A member erasing the personal details copied onto their own ticket or
+    // waitlist entry (account deletion). It can only blank the three contact
+    // fields; nothing else may ride along, and nothing can be swapped in.
+    function isContactErasure() {
+      return changedKeys().hasOnly(['name', 'email', 'phone', 'updatedAt'])
+        && request.resource.data.name == ''
+        && request.resource.data.email == ''
+        && request.resource.data.phone == '';
     }
 
     // Documents keyed `{parentId}__{uid}` are read by their owner before they
@@ -83,20 +99,34 @@ service cloud.firestore {
       // pinned to 'user', status to 'active', and the counters start at zero.
       allow create: if isOwner(userId)
         && request.resource.data.uid == userId
-        && (request.resource.data.role == 'user' || (request.auth.token.email == 'shalyagaonkar@gmail.com' && request.auth.token.email_verified == true))
+        && request.resource.data.role == 'user'
         && request.resource.data.status == 'active'
         && request.resource.data.eventsRegistered == 0
         && request.resource.data.eventsAttended == 0
         && request.resource.data.onboardingCompleted == false;
 
-      // Self-service edits. `role`, `status` and `uid` must be untouched, so
-      // privilege escalation is impossible from the client.
+      // Self-service edits. `role` and `uid` must be untouched, so privilege
+      // escalation is impossible from the client. `status` may only stay as it
+      // is or move from active to deleted (account deletion) -- never into or
+      // out of suspended, and a deleted profile cannot come back.
+      //
+      // `eventsAttended` is organiser-only; `eventsRegistered` moves by one
+      // per write (the registration transaction bumps it) and never below zero.
       allow update: if isAdmin()
         || (
           isOwner(userId)
           && request.resource.data.uid == resource.data.uid
           && request.resource.data.role == resource.data.role
-          && request.resource.data.status == resource.data.status
+          && (
+            request.resource.data.status == resource.data.status
+            || (resource.data.status == 'active' && request.resource.data.status == 'deleted')
+          )
+          && request.resource.data.get('eventsAttended', 0) == resource.data.get('eventsAttended', 0)
+          && request.resource.data.get('eventsRegistered', 0) >= 0
+          && withinOne(
+            resource.data.get('eventsRegistered', 0),
+            request.resource.data.get('eventsRegistered', 0)
+          )
         );
 
       // Deletion is an anonymising update (see `anonymiseUserProfile`), which
@@ -112,14 +142,52 @@ service cloud.firestore {
       ]);
     }
 
-    function withinOne(before, after) {
-      return after >= before - 1 && after <= before + 1;
+    function isLiveRegistration(data) {
+      return data.registrationStatus in ['confirmed', 'pending_payment'];
     }
 
-    // A member registering or cancelling nudges the denormalised counters by
-    // one. Everything else on the event — price, capacity, date, status — stays
-    // admin-only, and the capacity ceiling is enforced right here.
-    function isCounterNudge() {
+    function ownRegistrationPath(eventId) {
+      return /databases/$(database)/documents/registrations/$(eventId + '__' + uid());
+    }
+
+    function ownWaitlistPath(eventId) {
+      return /databases/$(database)/documents/waitlists/$(eventId + '__' + uid());
+    }
+
+    // How the caller's *live* registration for this event of a given type
+    // changes across the write being evaluated: +1 when they take a seat, -1
+    // when they release it, 0 otherwise. `existsAfter`/`getAfter` see the
+    // state the whole batch or transaction will leave behind, so a counter can
+    // only move in the same atomic write as the registration that justifies it.
+    function typedRegistrationDelta(eventId, participation) {
+      let path = ownRegistrationPath(eventId);
+      return (existsAfter(path)
+          && isLiveRegistration(getAfter(path).data)
+          && getAfter(path).data.participationType == participation ? 1 : 0)
+        - (exists(path)
+          && isLiveRegistration(get(path).data)
+          && get(path).data.participationType == participation ? 1 : 0);
+    }
+
+    function registrationDelta(eventId) {
+      let path = ownRegistrationPath(eventId);
+      return (existsAfter(path) && isLiveRegistration(getAfter(path).data) ? 1 : 0)
+        - (exists(path) && isLiveRegistration(get(path).data) ? 1 : 0);
+    }
+
+    function waitlistDelta(eventId) {
+      let path = ownWaitlistPath(eventId);
+      return (existsAfter(path) && getAfter(path).data.status == 'waiting' ? 1 : 0)
+        - (exists(path) && get(path).data.status == 'waiting' ? 1 : 0);
+    }
+
+    // A member registering, cancelling or joining the waitlist moves the
+    // denormalised counters, and only by what their own registration or
+    // waitlist entry actually changed in the same write. Without that tie a
+    // member could repeatedly nudge a counter and make an event look full or
+    // empty. Everything else on the event -- price, capacity, date, status --
+    // stays admin-only, and the capacity ceiling is enforced right here.
+    function isCounterNudge(eventId) {
       let before = resource.data;
       let after = request.resource.data;
       return onlyRegistrationCounters()
@@ -128,10 +196,12 @@ service cloud.firestore {
         && after.participantCount >= 0
         && after.audienceCount >= 0
         && after.waitlistCount >= 0
-        && withinOne(before.registeredCount, after.registeredCount)
-        && withinOne(before.participantCount, after.participantCount)
-        && withinOne(before.audienceCount, after.audienceCount)
-        && withinOne(before.waitlistCount, after.waitlistCount);
+        && after.registeredCount == before.get('registeredCount', 0) + registrationDelta(eventId)
+        && after.participantCount
+          == before.get('participantCount', 0) + typedRegistrationDelta(eventId, 'participant')
+        && after.audienceCount
+          == before.get('audienceCount', 0) + typedRegistrationDelta(eventId, 'audience')
+        && after.waitlistCount == before.get('waitlistCount', 0) + waitlistDelta(eventId);
     }
 
     match /events/{eventId} {
@@ -141,7 +211,7 @@ service cloud.firestore {
 
       allow create, delete: if isAdmin();
 
-      allow update: if isAdmin() || (isActiveMember() && isCounterNudge());
+      allow update: if isAdmin() || (isActiveMember() && isCounterNudge(eventId));
     }
 
     /* ---------------------------- Event requests ------------------------ */
@@ -182,12 +252,15 @@ service cloud.firestore {
 
     /* --------------------------- Registrations -------------------------- */
 
-    function registrationMatchesEvent(data, registrationId) {
+    // `ownerId` is the member the seat is for: the caller when they register
+    // themselves, or the member being promoted when an organiser does it.
+    function registrationMatchesEvent(data, registrationId, ownerId) {
       let event = eventData(data.eventId);
       return
         // One seat per person, enforced by a deterministic document id.
-        registrationId == data.eventId + '__' + uid()
-        && data.userId == uid()
+        registrationId == data.eventId + '__' + ownerId
+        && data.userId == ownerId
+        && data.participationType in ['participant', 'audience']
         // Price and currency are copied from the event — never from the client.
         && data.price == event.price
         && data.currency == event.currency
@@ -219,8 +292,19 @@ service cloud.firestore {
         || (isSignedIn() && resource != null && resource.data.userId == uid())
         || isOwnMissingDoc(registrationId);
 
-      allow create: if isActiveMember()
-        && registrationMatchesEvent(request.resource.data, registrationId);
+      allow create: if (
+          isActiveMember()
+          && registrationMatchesEvent(request.resource.data, registrationId, uid())
+        )
+        // An organiser promoting a member off the waitlist writes that
+        // member's registration. Every check on the event, price and role
+        // still applies, and the member has to be in good standing.
+        || (
+          isAdmin()
+          && userExists(request.resource.data.userId)
+          && userData(request.resource.data.userId).status == 'active'
+          && registrationMatchesEvent(request.resource.data, registrationId, request.resource.data.userId)
+        );
 
       allow update: if isAdmin()
         || (
@@ -228,11 +312,13 @@ service cloud.firestore {
           && resource.data.userId == uid()
           && (
             isSelfCancellation()
+            // Account deletion blanks the contact details on their tickets.
+            || isContactErasure()
             // Re-registering after cancelling rewrites the same document.
             || (
               resource.data.registrationStatus == 'cancelled'
               && isActiveMember()
-              && registrationMatchesEvent(request.resource.data, registrationId)
+              && registrationMatchesEvent(request.resource.data, registrationId, uid())
             )
           )
         );
@@ -242,22 +328,36 @@ service cloud.firestore {
 
     /* ------------------------------ Waitlist ---------------------------- */
 
+    // A waitlist entry the caller is allowed to hold: their own, keyed
+    // `{eventId}__{uid}`, and always starting out as `waiting`.
+    function isOwnWaitingEntry(waitlistId) {
+      return waitlistId == request.resource.data.eventId + '__' + uid()
+        && request.resource.data.userId == uid()
+        && request.resource.data.status == 'waiting';
+    }
+
     match /waitlists/{waitlistId} {
       allow get, list: if isAdmin()
         || (isSignedIn() && resource != null && resource.data.userId == uid())
         || isOwnMissingDoc(waitlistId);
 
-      allow create: if isActiveMember()
-        && waitlistId == request.resource.data.eventId + '__' + uid()
-        && request.resource.data.userId == uid()
-        && request.resource.data.status == 'waiting';
+      allow create: if isActiveMember() && isOwnWaitingEntry(waitlistId);
 
       allow update: if isAdmin()
         || (
           isSignedIn()
           && resource.data.userId == uid()
-          && changedKeys().hasOnly(['status'])
-          && request.resource.data.status == 'left'
+          && (
+            (changedKeys().hasOnly(['status']) && request.resource.data.status == 'left')
+            // Account deletion blanks the contact details on the entry.
+            || isContactErasure()
+            // Someone who left can join again; it rewrites the same document.
+            || (
+              resource.data.status == 'left'
+              && isActiveMember()
+              && isOwnWaitingEntry(waitlistId)
+            )
+          )
         );
 
       allow delete: if isAdmin();
@@ -279,9 +379,15 @@ service cloud.firestore {
           && request.resource.data.createdBy == uid()
         );
 
-      // Members can only bump the popularity counter.
+      // Members can only nudge the popularity counter, by one, never below
+      // zero -- not set it to an arbitrary number.
       allow update: if isAdmin()
-        || (isActiveMember() && changedKeys().hasOnly(['usageCount']));
+        || (
+          isActiveMember()
+          && changedKeys().hasOnly(['usageCount'])
+          && request.resource.data.usageCount >= 0
+          && withinOne(resource.data.get('usageCount', 0), request.resource.data.usageCount)
+        );
 
       allow delete: if isAdmin();
     }

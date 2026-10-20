@@ -96,7 +96,7 @@ npm run test:rules   # runs firestore.rules against the emulator (needs Java)
   lazy route chunks — and asserts the landing page, both auth screens, guest
   browsing, the sign-in redirect for member routes, the `/admin` redirect and
   the 404 all render.
-- **`tests/firestore.rules.test.ts`** runs 64 assertions against the real rules
+- **`tests/firestore.rules.test.ts`** runs 122 assertions against the real rules
   engine in the Firestore emulator. It is the proof behind every claim in
   [Security model](#security-model): self-promotion to admin is rejected, a
   mismatched price is rejected, a client-set `checked_in` is rejected, a paid
@@ -421,8 +421,13 @@ What the rules enforce (`firestore.rules`):
 - **Attendance is organiser-only.** `attendanceStatus`, `checkInTime` and
   `checkedInBy` are rejected on any member write.
 - **Capacity cannot be exceeded**, even by a crafted API call: the event's
-  counter update is bounded by `registeredCount <= capacity` and by ±1 per
-  write, and members may only touch those counter fields.
+  counter update is bounded by `registeredCount <= capacity`, members may only
+  touch those counter fields, and a counter can only move in the same atomic
+  write as the member's own registration or waitlist entry that justifies it
+  (the rules read the post-write state with `getAfter`). A member cannot nudge
+  a counter on its own to make an event look full or empty.
+- **Organiser access is the `role` field and nothing else.** There is no
+  hardcoded email in the rules or the client.
 - **Members read only their own data** — profile, registrations, notifications.
 - **Drafts are invisible** to anyone but an organiser.
 - **Everything unmatched is denied** by a final catch-all rule.

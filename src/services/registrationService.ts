@@ -13,6 +13,7 @@ import {
   serverTimestamp,
   startAfter,
   where,
+  writeBatch,
   type DocumentData,
   type QueryConstraint,
   type QueryDocumentSnapshot,
@@ -262,6 +263,35 @@ export async function cancelRegistration(registrationId: string, reason = ''): P
       { merge: true },
     )
   })
+}
+
+/**
+ * Blank the name, email and phone copied onto every ticket and waitlist entry
+ * a member holds. Used by account deletion: the profile is anonymised, so the
+ * copies of their details left on registrations would otherwise outlive them.
+ * The tickets themselves stay, so organiser attendance counts remain accurate.
+ */
+export async function eraseContactDetails(uid: string): Promise<void> {
+  const [registrations, waitlists] = await Promise.all([
+    getDocs(query(collection(db, COLLECTIONS.registrations), where('userId', '==', uid))),
+    getDocs(query(collection(db, COLLECTIONS.waitlists), where('userId', '==', uid))),
+  ])
+
+  const blank = { name: '', email: '', phone: '' }
+  const writes = [
+    ...registrations.docs.map((entry) => ({
+      ref: entry.ref,
+      data: { ...blank, updatedAt: serverTimestamp() },
+    })),
+    ...waitlists.docs.map((entry) => ({ ref: entry.ref, data: blank })),
+  ]
+
+  // Firestore batches cap at 500 writes.
+  for (let index = 0; index < writes.length; index += 400) {
+    const batch = writeBatch(db)
+    for (const { ref, data } of writes.slice(index, index + 400)) batch.update(ref, data)
+    await batch.commit()
+  }
 }
 
 /* --------------------------------- Reading -------------------------------- */

@@ -28,7 +28,7 @@ import {
   getUserProfile,
   upgradeGuestProfile,
 } from '@/services/userService'
-import { cancelRegistration } from '@/services/registrationService'
+import { cancelRegistration, eraseContactDetails } from '@/services/registrationService'
 import { trackSync } from '@/services/analyticsService'
 import type { UserProfile } from '@/types'
 
@@ -253,10 +253,11 @@ export interface DeleteAccountResult {
  * Delete the signed-in account.
  *
  * Order matters. Upcoming registrations are released first so seats go back to
- * other people, then the profile is anonymised (registration history stays
+ * other people, then the contact details on every ticket and waitlist entry
+ * are blanked, then the profile is anonymised (registration history stays
  * countable for the organiser, stripped of personal data), and only then is
- * the auth account removed — if that last step fails, the user can retry
- * without having half-deleted state.
+ * the auth account removed — if any step fails, the user can retry without
+ * having half-deleted state.
  */
 export async function deleteAccount(password?: string): Promise<DeleteAccountResult> {
   const user = auth.currentUser
@@ -287,6 +288,9 @@ export async function deleteAccount(password?: string): Promise<DeleteAccountRes
     }
   }
 
+  // Registrations and waitlist entries carry their own copy of the member's
+  // name, email and phone; blank those too, or the deletion is only skin deep.
+  await eraseContactDetails(user.uid)
   await anonymiseUserProfile(user.uid)
   await deleteUser(user)
 
@@ -296,8 +300,5 @@ export async function deleteAccount(password?: string): Promise<DeleteAccountRes
 /** Fetch the freshest role straight from Firestore (used by the admin gate). */
 export async function isAdminUser(uid: string): Promise<boolean> {
   const profile = await getUserProfile(uid)
-  return (
-    (profile?.role === 'admin' || profile?.email?.toLowerCase() === 'shalyagaonkar@gmail.com') &&
-    profile?.status !== 'suspended'
-  )
+  return profile?.role === 'admin' && profile?.status === 'active'
 }
