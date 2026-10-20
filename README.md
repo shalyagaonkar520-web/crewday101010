@@ -291,6 +291,48 @@ with Firebase:
 Before publishing, add the release keystore's SHA-1 too, and the Play
 App Signing certificate's SHA-1 once Play generates it.
 
+### Release build (Google Play)
+
+Play takes a signed Android App Bundle (`.aab`). Signing credentials live
+outside git.
+
+1. **Create an upload keystore once** (needs a JDK's `keytool`):
+
+   ```bash
+   keytool -genkeypair -v -keystore crewday-upload.jks -alias crewday-upload      -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+   Store the `.jks` file and both passwords **offline in two separate places**
+   (e.g. password manager plus an offline drive). Never commit them. If you
+   lose the upload key you need Play support to reset it.
+2. **Create `android/keystore.properties`** (git-ignored):
+
+   ```properties
+   storeFile=../crewday-upload.jks
+   storePassword=...
+   keyAlias=crewday-upload
+   keyPassword=...
+   ```
+
+   `storeFile` is relative to `android/`. As a fallback the build reads the
+   environment variables `CREWDAY_STORE_FILE`, `CREWDAY_STORE_PASSWORD`,
+   `CREWDAY_KEY_ALIAS` and `CREWDAY_KEY_PASSWORD`. With neither, the release
+   bundle is built unsigned (Play will reject it).
+3. **Build:** `npm run android:bundle`. The bundle lands at
+   `android/app/build/outputs/bundle/release/app-release.aab`.
+4. **Bump the version every upload.** Play rejects a repeated `versionCode`:
+   `cd android && gradlew bundleRelease -PversionCode=2 -PversionName=1.1`
+   (defaults are 1 and `1.0`).
+5. **Firebase / Google sign-in:** add the SHA-1 of the upload key
+   (`keytool -list -v -keystore crewday-upload.jks -alias crewday-upload`) and,
+   once Play App Signing issues it (Play Console -> Setup -> App signing),
+   that certificate's SHA-1 and SHA-256, under Firebase -> Project settings ->
+   your Android app. Re-download `google-services.json` afterwards. Play-installed
+   builds are signed with the Play certificate, so without it Google sign-in
+   fails there.
+
+`google-services.json` and keystores are git-ignored by `android/.gitignore`.
+
 ### What differs from the website
 
 | Area | Website | Android app |
