@@ -18,6 +18,14 @@ def releaseKeyAlias = signingValue('keyAlias', 'CREWDAY_KEY_ALIAS')
 def releaseKeyPassword = signingValue('keyPassword', 'CREWDAY_KEY_PASSWORD')
 def hasReleaseSigning = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
 
+// Defaults are the current release; override per build with
+// -PversionCode=3 -PversionName=1.1.1. Play needs a higher versionCode on every
+// upload, so bump the code here (and package.json's version) with each release.
+// Computed up front: `versionCode (expr).toInteger()` would be parsed by Groovy as
+// a call to versionCode(...) followed by .toInteger() on its null result.
+def appVersionCode = (project.findProperty('versionCode') ?: '2').toString().toInteger()
+def appVersionName = (project.findProperty('versionName') ?: '1.1.0').toString()
+
 android {
     namespace = "app.crewday"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -25,11 +33,8 @@ android {
         applicationId "app.crewday"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // Defaults are the current release; override per build with
-        // -PversionCode=3 -PversionName=1.1.1. Play needs a higher versionCode on every
-        // upload, so bump the code here (and package.json's version) with each release.
-        versionCode (project.findProperty('versionCode') ?: '2').toInteger()
-        versionName (project.findProperty('versionName') ?: '1.1.0')
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
