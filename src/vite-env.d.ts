@@ -10,6 +10,8 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_MEASUREMENT_ID: string
   readonly VITE_FIREBASE_VAPID_KEY: string
   readonly VITE_USE_FIREBASE_EMULATORS: string
+  /** Public support address shown on the privacy and account-deletion pages. */
+  readonly VITE_SUPPORT_EMAIL?: string
 }
 
 interface ImportMeta {

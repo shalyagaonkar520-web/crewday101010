@@ -129,6 +129,12 @@ describe('app shell', () => {
     expect(await screen.findByRole('heading', { name: /privacy policy/i })).toBeTruthy()
   })
 
+  it('renders the public account-deletion page without signing in', async () => {
+    await renderAt('/delete-account')
+    expect(await screen.findByRole('heading', { name: /delete your crewday account/i })).toBeTruthy()
+    expect(screen.getAllByText(/settings/i).length).toBeGreaterThan(0)
+  })
+
   it('renders a 404 for an unknown route', async () => {
     await renderAt('/this-route-does-not-exist')
     expect(await screen.findByText('404')).toBeTruthy()
