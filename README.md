@@ -321,8 +321,7 @@ outside git.
 3. **Build:** `npm run android:bundle`. The bundle lands at
    `android/app/build/outputs/bundle/release/app-release.aab`.
 4. **Bump the version every upload.** Play rejects a repeated `versionCode`:
-   `cd android && gradlew bundleRelease -PversionCode=2 -PversionName=1.1`
-   (defaults are 1 and `1.0`).
+   `cd android && gradlew bundleRelease -PversionCode=3 -PversionName=1.1.1` (the defaults in `android/app/build.gradle` are the current release: 2 / 1.1.0)
 5. **Firebase / Google sign-in:** add the SHA-1 of the upload key
    (`keytool -list -v -keystore crewday-upload.jks -alias crewday-upload`) and,
    once Play App Signing issues it (Play Console -> Setup -> App signing),
