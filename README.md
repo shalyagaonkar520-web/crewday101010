@@ -96,7 +96,7 @@ npm run test:rules   # runs firestore.rules against the emulator (needs Java)
   lazy route chunks — and asserts the landing page, both auth screens, guest
   browsing, the sign-in redirect for member routes, the `/admin` redirect and
   the 404 all render.
-- **`tests/firestore.rules.test.ts`** runs 64 assertions against the real rules
+- **`tests/firestore.rules.test.ts`** runs 122 assertions against the real rules
   engine in the Firestore emulator. It is the proof behind every claim in
   [Security model](#security-model): self-promotion to admin is rejected, a
   mismatched price is rejected, a client-set `checked_in` is rejected, a paid
@@ -291,6 +291,48 @@ with Firebase:
 Before publishing, add the release keystore's SHA-1 too, and the Play
 App Signing certificate's SHA-1 once Play generates it.
 
+### Release build (Google Play)
+
+Play takes a signed Android App Bundle (`.aab`). Signing credentials live
+outside git.
+
+1. **Create an upload keystore once** (needs a JDK's `keytool`):
+
+   ```bash
+   keytool -genkeypair -v -keystore crewday-upload.jks -alias crewday-upload      -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+   Store the `.jks` file and both passwords **offline in two separate places**
+   (e.g. password manager plus an offline drive). Never commit them. If you
+   lose the upload key you need Play support to reset it.
+2. **Create `android/keystore.properties`** (git-ignored):
+
+   ```properties
+   storeFile=../crewday-upload.jks
+   storePassword=...
+   keyAlias=crewday-upload
+   keyPassword=...
+   ```
+
+   `storeFile` is relative to `android/`. As a fallback the build reads the
+   environment variables `CREWDAY_STORE_FILE`, `CREWDAY_STORE_PASSWORD`,
+   `CREWDAY_KEY_ALIAS` and `CREWDAY_KEY_PASSWORD`. With neither, the release
+   bundle is built unsigned (Play will reject it).
+3. **Build:** `npm run android:bundle`. The bundle lands at
+   `android/app/build/outputs/bundle/release/app-release.aab`.
+4. **Bump the version every upload.** Play rejects a repeated `versionCode`:
+   `cd android && gradlew bundleRelease -PversionCode=2 -PversionName=1.1`
+   (defaults are 1 and `1.0`).
+5. **Firebase / Google sign-in:** add the SHA-1 of the upload key
+   (`keytool -list -v -keystore crewday-upload.jks -alias crewday-upload`) and,
+   once Play App Signing issues it (Play Console -> Setup -> App signing),
+   that certificate's SHA-1 and SHA-256, under Firebase -> Project settings ->
+   your Android app. Re-download `google-services.json` afterwards. Play-installed
+   builds are signed with the Play certificate, so without it Google sign-in
+   fails there.
+
+`google-services.json` and keystores are git-ignored by `android/.gitignore`.
+
 ### What differs from the website
 
 | Area | Website | Android app |
@@ -421,10 +463,20 @@ What the rules enforce (`firestore.rules`):
 - **Attendance is organiser-only.** `attendanceStatus`, `checkInTime` and
   `checkedInBy` are rejected on any member write.
 - **Capacity cannot be exceeded**, even by a crafted API call: the event's
-  counter update is bounded by `registeredCount <= capacity` and by ±1 per
-  write, and members may only touch those counter fields.
+  counter update is bounded by `registeredCount <= capacity`, members may only
+  touch those counter fields, and a counter can only move in the same atomic
+  write as the member's own registration or waitlist entry that justifies it
+  (the rules read the post-write state with `getAfter`). A member cannot nudge
+  a counter on its own to make an event look full or empty.
+- **Organiser access is the `role` field and nothing else.** There is no
+  hardcoded email in the rules or the client.
 - **Members read only their own data** — profile, registrations, notifications.
 - **Drafts are invisible** to anyone but an organiser.
+- **Account deletion can really erase personal data.** An owner may blank
+  *only* the contact fields copied onto their own documents, and only to an
+  empty string, with nothing else changing in the same write: name/email/phone on
+  registrations and waitlist entries, `requester*` on event proposals, and
+  `email` on problem reports. Admins can do the same for another member.
 - **Everything unmatched is denied** by a final catch-all rule.
 
 `storage.rules` restricts event images to organisers and scopes avatar uploads
@@ -504,11 +556,24 @@ exists.
   triggered on cancellation.
 - **Search is prefix + word based**, served by `searchTokens`. Good to roughly
   a few thousand events; beyond that, move to Algolia or Typesense.
-- **Deleting a member from the admin panel anonymises the profile** but cannot
-  delete their Firebase Auth account — that needs the Admin SDK. Deploy
-  `functions/` or remove the sign-in from the console. Self-service deletion
-  from Settings *does* delete the auth account.
+- **Account deletion removes contact details, not every trace.** Self-service
+  deletion (Settings) and the admin "Delete personal data" action both blank, in
+  this order: name/email/phone on the member's registrations and waitlist entries;
+  the requester name/email/phone on their event proposals; the email on their
+  problem reports; the comment on their event ratings; then they anonymise the
+  profile (name, email, phone, photo, city, interests, push tokens). Self-service
+  also deletes the Firebase Auth account. What is **not** erased: the free-text a
+  member typed into event proposals (title, description, venue) and problem
+  reports (subject, message), which may name someone and is kept as organiser
+  and support history; notifications (they hold event details, not contact
+  details); the opaque uid on tickets, ratings and interests; Firebase
+  Authentication and hosting logs; and Firestore backups or exports, which age
+  out on Google's schedule. Admin deletion cannot remove the Firebase Auth
+  account (needs the Admin SDK: deploy `functions/` or remove it in the
+  console). If the erase step fails, the deletion stops before the
+  profile is anonymised, so the member can simply retry.
 - **Analytics** logs the product funnel events listed in the brief and
-  deliberately sends no names, emails or phone numbers.
+  deliberately sends no names, emails or phone numbers, so there is nothing
+  to erase there (Google Analytics still keeps its own anonymous identifiers).
 - **Push on iOS** requires the site to be installed to the home screen; the
   Settings toggle reports this honestly instead of silently failing.
