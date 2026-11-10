@@ -7,7 +7,7 @@ Status: the Android app is built and signed. The Play Console and the Vercel dep
 ## What's in this folder
 | File | Use |
 |---|---|
-| `app-release-bundle.aab` (not in git) | Signed Android App Bundle (package `app.crewday`, version 1.0.0, code 1). It is too large for the repo, so it is shared separately: `C:SERSASHRITHA SEWDAY-RELEASEPP-RELEASE-BUNDLE.AAB`. UPLOAD IT TO PLAY CONSOLE. |
+| `app-release-bundle.aab` (not in git) | Signed Android App Bundle (package `app.crewday`, version 1.0.0, code 1). Too large for the repo, so it is shared separately at `C:UsersAshritha Screwday-releaseapp-release-bundle.aab`. Upload it to Play Console. |
 | `play-store-listing.md` | Paste-ready store listing, data safety, content rating, target audience, app access. |
 | `feature-graphic-1024x500.png` | Play feature graphic. |
 | `screenshots/events-1080x1920.png` | Sample phone screenshot. Google asks for at least 2, so add real app screenshots from a logged-in device. |
