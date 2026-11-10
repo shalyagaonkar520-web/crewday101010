@@ -45,3 +45,6 @@ src/assets/vite.svg
 
 # Local build used only to reproduce a deployment without env vars
 dist-noenv
+
+# Signed release bundle: shared separately, not in git
+playstore/*.aab

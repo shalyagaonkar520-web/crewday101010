@@ -1,0 +1,44 @@
+{
+  "packageId": "app.crewday",
+  "host": "crewday101010mm.vercel.app",
+  "name": "CrewDay",
+  "launcherName": "CrewDay",
+  "display": "standalone",
+  "themeColor": "#FFF7FB",
+  "themeColorDark": "#FFF7FB",
+  "navigationColor": "#FFF7FB",
+  "navigationColorDark": "#FFF7FB",
+  "navigationDividerColor": "#FFF7FB",
+  "navigationDividerColorDark": "#FFF7FB",
+  "backgroundColor": "#FFF7FB",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://crewday101010mm.vercel.app/icons/icon-512.png",
+  "maskableIconUrl": "https://crewday101010mm.vercel.app/icons/icon-512-maskable.png",
+  "monochromeIconUrl": "",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "C:/Users/Ashritha S/.crewday-keys/crewday-upload.jks",
+    "alias": "crewday"
+  },
+  "appVersionCode": 1,
+  "appVersion": "1.0.0",
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://crewday101010mm.vercel.app/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": { "enabled": false },
+    "playBilling": { "enabled": false }
+  },
+  "alphaDependencies": { "enabled": false },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fingerprints": [],
+  "orientation": "portrait",
+  "minSdkVersion": 24,
+  "targetSdkVersion": 35,
+  "enableNotifications": false
+}
+
