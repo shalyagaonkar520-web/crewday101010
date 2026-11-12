@@ -28,7 +28,7 @@ import {
   getUserProfile,
   upgradeGuestProfile,
 } from '@/services/userService'
-import { cancelRegistration } from '@/services/registrationService'
+import { cancelRegistration, eraseContactDetails } from '@/services/registrationService'
 import { trackSync } from '@/services/analyticsService'
 import type { UserProfile } from '@/types'
 
@@ -298,10 +298,11 @@ export interface DeleteAccountResult {
  * Delete the signed-in account.
  *
  * Order matters. Upcoming registrations are released first so seats go back to
- * other people, then the profile is anonymised (registration history stays
+ * other people, then the contact details on every ticket and waitlist entry
+ * are blanked, then the profile is anonymised (registration history stays
  * countable for the organiser, stripped of personal data), and only then is
- * the auth account removed — if that last step fails, the user can retry
- * without having half-deleted state.
+ * the auth account removed — if any step fails, the user can retry without
+ * having half-deleted state.
  */
 export async function deleteAccount(password?: string): Promise<DeleteAccountResult> {
   const user = auth.currentUser
@@ -309,9 +310,7 @@ export async function deleteAccount(password?: string): Promise<DeleteAccountRes
 
   await reauthenticate(user, password)
 
-  const { collection, doc, getDocs, query, serverTimestamp, updateDoc, where } = await import(
-    'firebase/firestore'
-  )
+  const { collection, getDocs, query, where } = await import('firebase/firestore')
   const { COLLECTIONS, db } = await import('@/firebase/config')
   const { todayISO } = await import('@/utils/format')
 
@@ -334,30 +333,9 @@ export async function deleteAccount(password?: string): Promise<DeleteAccountRes
     }
   }
 
-  // Strip name/email/phone from every registration and waitlist entry this
-  // account ever made (past ones included). The security rules allow exactly
-  // this write and nothing else, so the organiser keeps an anonymous
-  // headcount while no personal data outlives the account. Best effort per
-  // document: one locked record must not block the deletion.
-  const SCRUB = { name: 'Deleted user', email: '', phone: '' }
-  const [allRegistrations, allWaitlists] = await Promise.all([
-    getDocs(query(collection(db, COLLECTIONS.registrations), where('userId', '==', user.uid))),
-    getDocs(query(collection(db, COLLECTIONS.waitlists), where('userId', '==', user.uid))),
-  ])
-  await Promise.all([
-    ...allRegistrations.docs.map((entry) =>
-      updateDoc(doc(db, COLLECTIONS.registrations, entry.id), {
-        ...SCRUB,
-        updatedAt: serverTimestamp(),
-      }).catch(() => undefined),
-    ),
-    ...allWaitlists.docs.map((entry) =>
-      updateDoc(doc(db, COLLECTIONS.waitlists, entry.id), { ...SCRUB, status: 'left' }).catch(
-        () => undefined,
-      ),
-    ),
-  ])
-
+  // Registrations and waitlist entries carry their own copy of the member's
+  // name, email and phone; blank those too, or the deletion is only skin deep.
+  await eraseContactDetails(user.uid)
   await anonymiseUserProfile(user.uid)
   await deleteUser(user)
 
@@ -367,8 +345,5 @@ export async function deleteAccount(password?: string): Promise<DeleteAccountRes
 /** Fetch the freshest role straight from Firestore (used by the admin gate). */
 export async function isAdminUser(uid: string): Promise<boolean> {
   const profile = await getUserProfile(uid)
-  return (
-    (profile?.role === 'admin' || profile?.email?.toLowerCase() === 'shalyagaonkar@gmail.com') &&
-    profile?.status !== 'suspended'
-  )
+  return profile?.role === 'admin' && profile?.status === 'active'
 }

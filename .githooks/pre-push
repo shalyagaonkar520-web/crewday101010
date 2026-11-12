@@ -1,0 +1,9 @@
+#!/bin/sh
+# Opt-in local gate: typecheck, lint, DOM tests and a production build must pass
+# before a push leaves this machine. Enable once with `npm run hooks:install`;
+# skip a single push with `git push --no-verify`.
+echo "pre-push: running npm run verify ..."
+npm run verify || {
+  echo "pre-push: verify failed, push aborted." >&2
+  exit 1
+}

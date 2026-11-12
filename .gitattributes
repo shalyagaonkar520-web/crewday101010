@@ -1,0 +1,2 @@
+# Shell hooks must keep LF endings or they fail on Windows with ": not found".
+.githooks/* text eol=lf

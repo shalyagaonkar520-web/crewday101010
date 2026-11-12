@@ -11,6 +11,7 @@ import { Tabs } from '@/components/ui/Tabs'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { useDebounce } from '@/hooks/useDebounce'
+import { eraseContactDetails } from '@/services/registrationService'
 import { anonymiseUserProfile, listUsers, setUserRole, setUserStatus } from '@/services/userService'
 import { ADMIN_PAGE_SIZE } from '@/utils/constants'
 import { formatDateTime } from '@/utils/format'
@@ -360,12 +361,17 @@ export default function AdminUsersPage() {
       <ConfirmDialog
         open={Boolean(deleteTarget)}
         title="Delete this member's personal data?"
-        description="Name, email, phone, photo and interests are removed and the profile is marked deleted. Their attendance history stays as an anonymous count. Their sign-in account itself can only be removed from the authentication console, or by the member deleting their own account."
+        description="Name, email, phone, photo and interests are removed, along with the contact details on their tickets, waitlist entries, event proposals and reports, and the profile is marked deleted. Their attendance history stays as an anonymous count. Their sign-in account itself can only be removed from the authentication console, or by the member deleting their own account."
         confirmLabel="Delete personal data"
         loading={busy}
         onConfirm={() =>
           deleteTarget &&
-          void runAction(() => anonymiseUserProfile(deleteTarget.uid), 'Personal data removed.')
+          void runAction(async () => {
+            // Copies of their details on tickets, proposals and reports first,
+            // then the profile itself (which also locks the member out).
+            await eraseContactDetails(deleteTarget.uid)
+            await anonymiseUserProfile(deleteTarget.uid)
+          }, 'Personal data removed.')
         }
         onCancel={() => setDeleteTarget(null)}
       />

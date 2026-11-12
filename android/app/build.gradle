@@ -9,18 +9,28 @@ plugins {
  * Play Console only accepts an upload signed with *your* key, and that key can
  * never be replaced once the app is live — so its details live in
  * `android/keystore.properties`, which is gitignored and never leaves this
- * machine. Without that file the release build falls back to the debug key, so
- * a fresh clone still builds; such a build installs on a phone but Play will
- * reject it.
+ * machine (or in CREWDAY_* environment variables). Without either, the release
+ * build is left unsigned, so a fresh clone still builds but Play will reject it.
  *
  * See PLAY_STORE.md for how to create the keystore.
  */
-def keystorePropertiesFile = rootProject.file('keystore.properties')
-def keystoreProperties = new Properties()
-def hasReleaseKeystore = keystorePropertiesFile.exists()
-if (hasReleaseKeystore) {
-    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+// Release signing credentials: android/keystore.properties (untracked) first,
+// then environment variables. If neither is present the release build is
+// simply left unsigned -- configuration never fails.
+def keystoreProps = new Properties()
+def keystoreFile = rootProject.file('keystore.properties')
+if (keystoreFile.exists()) {
+    keystoreFile.withInputStream { keystoreProps.load(it) }
 }
+def signingValue = { String propKey, String envKey ->
+    def v = keystoreProps.getProperty(propKey) ?: System.getenv(envKey)
+    return v ? v.trim() : null
+}
+def releaseStoreFile = signingValue('storeFile', 'CREWDAY_STORE_FILE')
+def releaseStorePassword = signingValue('storePassword', 'CREWDAY_STORE_PASSWORD')
+def releaseKeyAlias = signingValue('keyAlias', 'CREWDAY_KEY_ALIAS')
+def releaseKeyPassword = signingValue('keyPassword', 'CREWDAY_KEY_PASSWORD')
+def hasReleaseSigning = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
 
 android {
     namespace = "app.crewday"
@@ -29,11 +39,10 @@ android {
         applicationId "app.crewday"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // Play rejects an upload whose versionCode it has seen before. Raise
-        // versionCode by one for every upload; versionName is what people read
-        // on the store listing.
-        versionCode 2
-        versionName "1.1"
+        // Play rejects an upload whose versionCode it has seen before (2 is
+        // already on Play). Override per build with -PversionCode=4 -PversionName=1.3.
+        versionCode (project.findProperty('versionCode') ?: '3').toInteger()
+        versionName (project.findProperty('versionName') ?: '1.2')
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -42,24 +51,26 @@ android {
         }
     }
     signingConfigs {
-        if (hasReleaseKeystore) {
-            release {
-                storeFile file(keystoreProperties['storeFile'])
-                storePassword keystoreProperties['storePassword']
-                keyAlias keystoreProperties['keyAlias']
-                keyPassword keystoreProperties['keyPassword']
+        release {
+            if (hasReleaseSigning) {
+                // Relative paths in keystore.properties resolve against android/.
+                storeFile rootProject.file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
             }
         }
     }
     buildTypes {
         release {
-            // Left off deliberately. Almost all of this app is web assets that
-            // Vite has already minified; R8 would only shave the thin Capacitor
-            // shell, and it can strip bridge classes that are reached by name
-            // from JavaScript. Turn it on only with a device test to back it up.
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+            // R8 left off on purpose: Capacitor reaches plugins and the JS bridge
+            // by reflection/annotations, and a broken release matters more than
+            // a smaller bundle. Revisit only with a device-tested build.
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
         }
     }
 }
