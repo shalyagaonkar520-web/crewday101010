@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.crewday",
+      "sha256_cert_fingerprints": [
+        "FA:D8:6C:F9:8E:5B:A9:5B:20:E3:E6:80:E4:AC:01:82:D6:33:1C:E7:87:F6:1D:F4:0E:27:5D:45:1B:18:B3:39"
+      ]
+    }
+  }
+]

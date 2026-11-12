@@ -204,8 +204,8 @@ CrewDay is for adults aged 18 and over.
 
 | Asset | Spec |
 | --- | --- |
-| App icon | 512 × 512 PNG, 32-bit, up to 1 MB. The brand mark is `public/crewday-mark.svg` |
-| Feature graphic | 1024 × 500 PNG or JPG |
+| App icon | 512 × 512 PNG, 32-bit, up to 1 MB. Exists: `public/icons/icon-512.png` (and a maskable variant) |
+| Feature graphic | 1024 × 500 PNG or JPG. Exists: `playstore/feature-graphic-1024x500.png` |
 | Phone screenshots | 2 to 8, 16:9 or 9:16, each side 320 to 3840 px. Suggested set: Explore, event detail, register, QR ticket, My events, organiser scanner |
 
 Take screenshots from a real device or the emulator with real-looking data.
@@ -213,7 +213,9 @@ Do not show private emails or phone numbers.
 
 ## 12. Before you can release
 
-- A signed `.aab`: see the **Release build (Google Play)** section of the README.
+- **Which build:** the Play listing uses the Trusted Web Activity in `playstore/` (see the Android section of the README). Upload the signed bundle described in `playstore/README.md`. The Capacitor `.aab` from `npm run android:bundle` is the dormant alternative; do not upload both.
+- After the first upload, take the Play App Signing certificate SHA-256 from Play Console, add it to `public/.well-known/assetlinks.json` next to the upload-key fingerprint and redeploy, or Android shows a browser bar.
+- The Capacitor-only steps (Firebase SHA registration, `google-services.json`) apply only if you choose that route.
 - Register the release and Play App Signing SHA-1 and SHA-256 in Firebase, or
   Google sign-in fails on builds installed from Play.
 - New personal developer accounts must run a **closed test with at least 12

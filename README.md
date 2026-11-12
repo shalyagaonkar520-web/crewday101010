@@ -251,7 +251,18 @@ npm run deploy             # build + deploy hosting, rules, indexes and function
 
 ## Android app
 
-The same codebase ships as an Android app. [Capacitor](https://capacitorjs.com)
+> **Which Android build ships to Google Play: the Trusted Web Activity (TWA).**
+> The Play listing is a thin Android wrapper around the live website (see
+> [`playstore/`](playstore/README.md): Bubblewrap config, web manifest, icons and
+> Digital Asset Links). Web fixes reach Android users as soon as Vercel deploys,
+> Google sign-in runs in real Chrome with the existing web code, and there is no
+> native sign-in or `google-services.json` to maintain. The Capacitor project in
+> [`android/`](android/) described below is kept as a **dormant alternative**: do
+> not upload both, because they share the package name `app.crewday` and Play
+> fixes the upload key on the first upload. Choose Capacitor instead only if you
+> need native features later (push, offline shell).
+
+Alternative build (dormant): the same codebase also ships as an Android app. [Capacitor](https://capacitorjs.com)
 loads the production web build (`dist/`) into a WebView inside a native shell;
 the native project lives in [`android/`](android/) and opens directly in
 Android Studio. There is one codebase, one Firebase project and one set of
