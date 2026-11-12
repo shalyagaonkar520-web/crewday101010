@@ -86,8 +86,17 @@ async function nativeGoogleCredential(): Promise<AuthCredential> {
  */
 function translateNativeGoogleError(caught: unknown): Error {
   const message = String((caught as { message?: string })?.message ?? caught ?? '')
+  // Credential Manager reports a signing-certificate mismatch as a
+  // *cancellation* ("[16] Account reauth failed"), so catch it before the real
+  // cancel check or it reads as the user backing out.
+  if (/reauth failed/i.test(message)) {
+    return new AuthError(
+      'auth/native-misconfigured',
+      'Google sign-in is not set up for this build of the app yet. Sign in with email, or contact support.',
+    )
+  }
   // 12501 = SIGN_IN_CANCELLED, 16 = CANCELED (sheet dismissed / no account chosen).
-  if (/(12501|16)/.test(message) || /cancel/i.test(message)) {
+  if (/\b(12501|16)\b/.test(message) || /cancel/i.test(message)) {
     return new AuthError('auth/popup-closed-by-user', 'Sign in was cancelled.')
   }
   // 10 = DEVELOPER_ERROR: the APK's signing SHA-1 is not registered in Firebase.
