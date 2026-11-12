@@ -45,7 +45,10 @@ const AdminInterestsPage = lazy(() => import('@/pages/admin/AdminInterests'))
 const AdminRequestsPage = lazy(() => import('@/pages/admin/AdminRequests'))
 const AdminReportsPage = lazy(() => import('@/pages/admin/AdminReports'))
 
-// Legal pages are two named exports from one module.
+// Legal pages are named exports from one module.
+const DeleteAccountPage = lazy(() =>
+  import('@/pages/legal/Legal').then((module) => ({ default: module.DeleteAccountPage })),
+)
 const TermsPage = lazy(() =>
   import('@/pages/legal/Legal').then((module) => ({ default: module.TermsPage })),
 )
@@ -88,6 +91,8 @@ export function AppRoutes() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
+        {/* Public on purpose: Google Play needs a deletion URL that works signed out. */}
+        <Route path="/delete-account" element={<DeleteAccountPage />} />
 
         {/* Onboarding sits outside the app shell: no nav until the profile exists */}
         <Route

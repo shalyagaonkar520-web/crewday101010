@@ -108,3 +108,11 @@ export const ADMIN_PAGE_SIZE = 25
 
 /** Minimum gap (minutes) before start time at which check-in opens. */
 export const CHECKIN_WINDOW_MINUTES = 180
+
+/**
+ * Public support address for the privacy policy and the account-deletion page.
+ * Set `VITE_SUPPORT_EMAIL` on the deployment; when it is empty the pages fall
+ * back to the in-app "Report a problem" route rather than showing a made-up
+ * address. Play Store requires a real contact email on the listing.
+ */
+export const SUPPORT_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL ?? '').trim()

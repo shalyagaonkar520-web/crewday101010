@@ -3,7 +3,7 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [{ "source": "/((?!assets/|firebase-messaging-sw.js|crewday-mark.svg).*)", "destination": "/index.html" }],
+  "rewrites": [{ "source": "/((?!assets/|\\.well-known/|icons/|manifest\\.json|firebase-messaging-sw.js|crewday-mark.svg).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/assets/(.*)",
