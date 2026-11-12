@@ -213,6 +213,7 @@ Do not show private emails or phone numbers.
 
 ## 12. Before you can release
 
+- **Target API level:** Play requires new apps and updates to target Android 16 (API 36). `playstore/android/twa-manifest.json` is set to 36, but the bundle on Ashritha's machine was built for 35 and must be rebuilt. See `playstore/README.md`, Step 0.
 - **Which build:** the Play listing uses the Trusted Web Activity in `playstore/` (see the Android section of the README). Upload the signed bundle described in `playstore/README.md`. The Capacitor `.aab` from `npm run android:bundle` is the dormant alternative; do not upload both.
 - After the first upload, take the Play App Signing certificate SHA-256 from Play Console, add it to `public/.well-known/assetlinks.json` next to the upload-key fingerprint and redeploy, or Android shows a browser bar.
 - The Capacitor-only steps (Firebase SHA registration, `google-services.json`) apply only if you choose that route.

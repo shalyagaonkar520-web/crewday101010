@@ -38,7 +38,7 @@
   "fingerprints": [],
   "orientation": "portrait",
   "minSdkVersion": 24,
-  "targetSdkVersion": 35,
+  "targetSdkVersion": 36,
   "enableNotifications": false
 }
 
