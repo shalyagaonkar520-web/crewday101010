@@ -26,14 +26,14 @@ YOUR PRIVACY
 - Your email and phone number are never shown publicly.
 - Organisers see your name, email, phone number and check-in status only for events you register for.
 - You can delete your account at any time from Settings.
-- Read our Privacy Policy: https://rooman-books.momsmagic.shop/privacy
+- Read our Privacy Policy: https://crewday.nirmaansolutions.in/privacy
 
 **Category:** Events
 **Tags (optional):** Events, Social, Hobbies
 **Contact email:** use the support address you set on the Play Console (required)
-**Website:** https://rooman-books.momsmagic.shop
-**Privacy policy URL:** https://rooman-books.momsmagic.shop/privacy
-**Terms (for reference):** https://rooman-books.momsmagic.shop/terms
+**Website:** https://crewday.nirmaansolutions.in
+**Privacy policy URL:** https://crewday.nirmaansolutions.in/privacy
+**Terms (for reference):** https://crewday.nirmaansolutions.in/terms
 
 ## Graphics
 - App icon (512×512 PNG): `public/icons/icon-512.png`

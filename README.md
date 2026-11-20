@@ -580,7 +580,7 @@ about money on the server:
 
 Follow `docs/razorpay-setup.md`: server-only keys and the webhook secret go into
 the Vercel project's environment, the Razorpay dashboard webhook points at
-`https://rooman-books.momsmagic.shop/api/razorpay-webhook` (events
+`https://crewday.nirmaansolutions.in/api/razorpay-webhook` (events
 `payment.captured`, `order.paid`), and `VITE_ONLINE_PAYMENTS=true` switches the
 button on. Until then the UPI option works on its own and nothing breaks on Spark.
 

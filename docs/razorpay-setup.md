@@ -108,7 +108,7 @@ deployment, and `VITE_` values are baked in at build time.
 
 Dashboard → Account & Settings → Webhooks → Add new webhook:
 
-- **URL:** `https://rooman-books.momsmagic.shop/api/razorpay-webhook`
+- **URL:** `https://crewday.nirmaansolutions.in/api/razorpay-webhook`
 - **Secret:** the same value you set as `RAZORPAY_WEBHOOK_SECRET`
 - **Events:** `payment.captured` and `order.paid`
 
@@ -120,7 +120,7 @@ capture, `payment.captured` never fires and nobody is confirmed.
 
 ## 6. Check the wiring
 
-Before taking a payment, open `https://rooman-books.momsmagic.shop/api/razorpay-webhook`
+Before taking a payment, open `https://crewday.nirmaansolutions.in/api/razorpay-webhook`
 in a browser. A `405 Method not allowed` JSON reply means the route is deployed
 (it only accepts POST). A `404` means the routes did not deploy; check the
 Vercel build log. A `503` on a signed POST means a variable from step 3 is

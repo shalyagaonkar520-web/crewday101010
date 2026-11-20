@@ -21,7 +21,7 @@ const CHECKOUT_SRC = 'https://checkout.razorpay.com/v1/checkout.js'
  * calls the deployed site instead (that route allows the app's origin).
  */
 const API_ORIGIN = isNativeApp
-  ? (import.meta.env.VITE_API_ORIGIN as string | undefined) || 'https://rooman-books.momsmagic.shop'
+  ? (import.meta.env.VITE_API_ORIGIN as string | undefined) || 'https://crewday.nirmaansolutions.in'
   : ''
 
 export interface RazorpayOrder {

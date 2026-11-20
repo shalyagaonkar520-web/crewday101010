@@ -3,13 +3,24 @@
  * waiting for the organiser to confirm it, and the pure link builder behind it.
  */
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { ReactElement } from 'react'
+import { MemoryRouter } from 'react-router-dom'
+import { cleanup, fireEvent, render as rtlRender, screen, waitFor } from '@testing-library/react'
+
+// The panel can show the online checkout, which links to the refund policy.
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: MemoryRouter })
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PaymentSettings, Registration } from '@/types'
 
 const getPaymentSettings = vi.hoisted(() => vi.fn())
 
 vi.mock('@/services/paymentService', () => ({ getPaymentSettings }))
+// These cover the UPI panel; the online checkout has its own tests. Pin it off so a
+// developer's .env.local (VITE_ONLINE_PAYMENTS=true) cannot change what renders.
+vi.mock('@/utils/constants', async () => ({
+  ...(await vi.importActual<typeof import('@/utils/constants')>('@/utils/constants')),
+  ONLINE_PAYMENTS: false,
+}))
 
 import { PaymentPanel } from '@/components/payments/PaymentPanel'
 import { buildUpiLink } from '@/utils/upi'

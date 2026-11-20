@@ -13,13 +13,13 @@ password; do not paste real credentials into this file.
 | Need | Why | Where it goes |
 | --- | --- | --- |
 | A support email address | Play requires a contact email, and the privacy policy and deletion page show one | Set `VITE_SUPPORT_EMAIL` in Vercel (Production + Preview), redeploy; use the same address on the store listing |
-| Production domain | `https://rooman-books.momsmagic.shop` (Cloudflare DNS, Vercel project `crewday`). The old `crewday101010mm.vercel.app` belongs to a different Vercel account and is no longer used by the Play listing or the Android app | Used in the two URLs below |
+| Production domain | `https://crewday.nirmaansolutions.in` (Vercel project `crewday`; `rooman-books.momsmagic.shop` serves the same deployment). The old `crewday101010mm.vercel.app` belongs to a different Vercel account and is no longer used by the Play listing or the Android app | Used in the two URLs below |
 | A reviewer test account | Play reviewers must be able to open the app | See *Sign-in details* |
 
 URLs for the forms (both are public and work signed out):
 
-- Privacy policy: `https://rooman-books.momsmagic.shop/privacy`
-- Account deletion page: `https://rooman-books.momsmagic.shop/delete-account`
+- Privacy policy: `https://crewday.nirmaansolutions.in/privacy`
+- Account deletion page: `https://crewday.nirmaansolutions.in/delete-account`
 
 Check both load in a private window before you submit.
 
@@ -119,7 +119,7 @@ If you turn analytics off (leave `VITE_FIREBASE_MEASUREMENT_ID` empty) you may
 remove the *App interactions* and *Device or other IDs* rows.
 
 **Data deletion:** choose "Users can request deletion", link
-`https://rooman-books.momsmagic.shop/delete-account`. Say that deletion erases
+`https://crewday.nirmaansolutions.in/delete-account`. Say that deletion erases
 name, email, phone and contact copies on tickets, waitlists, suggestions and
 reports, removes feedback comments, and deletes the sign-in, and that anonymous
 attendance and ratings are kept. Update this form if the behaviour changes.
@@ -143,7 +143,7 @@ but no payment is taken in the app. Revisit this when payments are added.
 - Category: **Events**
 - Tags: Events, Social, Local, Hobbies (pick from Google's list)
 - Email: **YOU** — your support address (shown on the listing)
-- Website: `https://rooman-books.momsmagic.shop`
+- Website: `https://crewday.nirmaansolutions.in`
 - Phone: optional
 
 ## 11. Store listing text
