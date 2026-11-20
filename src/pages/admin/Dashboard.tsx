@@ -188,14 +188,6 @@ export default function AdminDashboardPage() {
       {/* Welcome banner */}
       <header className="relative overflow-hidden rounded-[2rem] bg-[#d5b8e2] px-5 py-5 shadow-soft ring-1 ring-white/70 sm:px-7">
         <div className="flex items-center gap-5">
-          <img
-            src="/brand/ref/girl-dash.png"
-            alt=""
-            className="-my-5 hidden h-40 w-auto shrink-0 self-end sm:block"
-            onError={(event) => {
-              event.currentTarget.hidden = true
-            }}
-          />
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-2xl font-extrabold text-ink-900">
               {greeting}

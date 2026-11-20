@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import { Logo } from '@/components/layout/Logo'
 
 /**
- * The sign-in poster: a tall pastel panel with the character leaning on a
- * soft rounded card and a plant at each corner. Same shell for login,
+ * The sign-in poster: a tall pastel panel with the logo above a soft rounded
+ * card and a plant at each corner. Same shell for login,
  * sign-up and reset.
  *
  * The poster keeps its natural size and is scaled down as a whole when the
@@ -45,10 +45,6 @@ export function AuthLayout({
 
   return (
     <div className="auth-compact relative flex h-dvh items-center justify-center overflow-hidden px-2">
-      <Link to="/explore" className="absolute top-3 left-4 z-20 hidden lg:block">
-        <Logo />
-      </Link>
-
       <main
         ref={posterRef}
         className="relative w-full max-w-[38rem] shrink-0 overflow-hidden rounded-[2rem] pb-[5%] shadow-lift"
@@ -57,14 +53,12 @@ export function AuthLayout({
           transform: `scale(${scale})`,
         }}
       >
-        <img
-          src="/brand/ref/girl-login.png"
-          alt=""
-          className="relative z-10 mx-auto mt-[1%] -mb-[3.6%] block w-[68%]"
-          onError={(event) => {
-            event.currentTarget.hidden = true
-          }}
-        />
+        <Link
+          to="/explore"
+          className="relative z-10 mx-auto mt-[7%] mb-[5%] flex w-fit rounded-full bg-white/85 py-2 pr-5 pl-2.5 shadow-soft"
+        >
+          <Logo />
+        </Link>
 
         <img
           src="/brand/ref/plant-left.png"
