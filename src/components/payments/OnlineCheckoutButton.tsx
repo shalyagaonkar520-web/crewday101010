@@ -1,6 +1,8 @@
+import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { CreditCard } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { REFUND_CUTOFF_HOURS } from '@/utils/constants'
 import { InlineAlert } from '@/components/ui/Feedback'
 import {
   createRazorpayOrder,
@@ -83,7 +85,14 @@ export function OnlineCheckoutButton({ registration }: { registration: Registrat
       >
         Pay {formatPrice(registration.price, registration.currency)} online
       </Button>
-      <p className="mt-2 text-center text-xs text-ink-500">Card, UPI or netbanking through Razorpay</p>
+      <p className="mt-2 text-center text-xs text-ink-500">
+        Card, UPI or netbanking through Razorpay. Free cancellation up to {REFUND_CUTOFF_HOURS} hours
+        before the event; see the{' '}
+        <Link to="/refund-policy" className="font-semibold text-brand-600 hover:underline">
+          refund policy
+        </Link>
+        .
+      </p>
       {state.status === 'error' ? (
         <div className="mt-3">
           <InlineAlert tone="danger">{state.message}</InlineAlert>

@@ -244,6 +244,15 @@ export default function LandingPage() {
             <Link to="/privacy" className="hover:text-ink-900">
               Privacy
             </Link>
+            <Link to="/refund-policy" className="hover:text-ink-900">
+              Refunds
+            </Link>
+            <Link to="/shipping-policy" className="hover:text-ink-900">
+              Delivery
+            </Link>
+            <Link to="/contact" className="hover:text-ink-900">
+              Contact
+            </Link>
             <Link to="/delete-account" className="hover:text-ink-900">
               Delete account
             </Link>

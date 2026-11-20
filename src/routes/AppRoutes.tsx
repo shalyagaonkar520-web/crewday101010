@@ -58,6 +58,15 @@ const TermsPage = lazy(() =>
 const PrivacyPage = lazy(() =>
   import('@/pages/legal/Legal').then((module) => ({ default: module.PrivacyPage })),
 )
+const RefundPolicyPage = lazy(() =>
+  import('@/pages/legal/Legal').then((module) => ({ default: module.RefundPolicyPage })),
+)
+const ShippingPolicyPage = lazy(() =>
+  import('@/pages/legal/Legal').then((module) => ({ default: module.ShippingPolicyPage })),
+)
+const ContactPage = lazy(() =>
+  import('@/pages/legal/Legal').then((module) => ({ default: module.ContactPage })),
+)
 
 export function AppRoutes() {
   return (
@@ -96,6 +105,10 @@ export function AppRoutes() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
+        {/* Razorpay's merchant review checks these are public. */}
+        <Route path="/refund-policy" element={<RefundPolicyPage />} />
+        <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         {/* Public on purpose: Google Play needs a deletion URL that works signed out. */}
         <Route path="/delete-account" element={<DeleteAccountPage />} />
 

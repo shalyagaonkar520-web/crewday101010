@@ -2,7 +2,19 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { Logo } from '@/components/layout/Logo'
-import { SUPPORT_EMAIL } from '@/utils/constants'
+import {
+  BUSINESS_ADDRESS,
+  GRIEVANCE_OFFICER,
+  GRIEVANCE_REPLY_BUSINESS_DAYS,
+  OPERATOR_NAME,
+  REFUND_CREDIT_BUSINESS_DAYS,
+  REFUND_CUTOFF_HOURS,
+  REFUND_START_BUSINESS_DAYS,
+  SUPPORT_EMAIL,
+  SUPPORT_PHONE,
+} from '@/utils/constants'
+
+const linkClass = 'font-semibold text-brand-600 hover:underline'
 
 /** The support address as a mail link, or the in-app route when none is configured. */
 function SupportContact() {
@@ -47,12 +59,13 @@ function LegalShell({ title, updated, children }: { title: string; updated: stri
 
 export function TermsPage() {
   return (
-    <LegalShell title="Terms & Conditions" updated="24 October 2026">
+    <LegalShell title="Terms & Conditions" updated="20 November 2026">
       <section>
         <h2>1. About CrewDay</h2>
         <p>
           CrewDay is a platform for discovering and registering for social events, hobby meet-ups
-          and activities. By creating an account you agree to these terms.
+          and activities, operated by {OPERATOR_NAME} ("we", "us"). By creating an account you agree
+          to these terms.
         </p>
       </section>
       <section>
@@ -88,9 +101,15 @@ export function TermsPage() {
           Event prices are set by the organiser and shown before you register. Payments are
           processed by Razorpay; CrewDay never sees or stores your card, UPI or bank details. A
           registration for a paid event is only confirmed once Razorpay reports the payment as
-          successful. If you cancel a paid registration, or the organiser cancels the event,
-          refunds are handled by the organiser under the terms shown on the event and returned to
-          the original payment method.
+          successful. Cancellations and refunds follow our{' '}
+          <Link to="/refund-policy" className={linkClass}>
+            Refund &amp; Cancellation Policy
+          </Link>
+          , and tickets are delivered as described in our{' '}
+          <Link to="/shipping-policy" className={linkClass}>
+            Delivery Policy
+          </Link>
+          .
         </p>
       </section>
       <section>
@@ -117,11 +136,12 @@ export function TermsPage() {
       <section>
         <h2>8. Contact</h2>
         <p>
-          Questions about these terms:{' '}
-          <a href={'mailto:' + SUPPORT_EMAIL} className="font-semibold text-brand-600 hover:underline">
-            {SUPPORT_EMAIL}
-          </a>
-          .
+          Questions or complaints about these terms: <SupportContact />. Our grievance officer and
+          full contact details are on the{' '}
+          <Link to="/contact" className={linkClass}>
+            Contact &amp; Grievances
+          </Link>{' '}
+          page.
         </p>
       </section>
     </LegalShell>
@@ -130,7 +150,7 @@ export function TermsPage() {
 
 export function PrivacyPage() {
   return (
-    <LegalShell title="Privacy Policy" updated="16 November 2026">
+    <LegalShell title="Privacy Policy" updated="20 November 2026">
       <section>
         <p>
           This policy explains what CrewDay collects, why, who can see it, and how you can have it
@@ -273,8 +293,10 @@ export function PrivacyPage() {
           What we keep: an anonymous attendance record (that a seat existed and whether it was used)
           and star ratings, so organisers keep accurate event records, and the subject and text of
           suggestions and reports you wrote. If you put personal details into free text, ask us to
-          remove it. Copies held in routine infrastructure logs or backups are removed as those age
-          out.
+          remove it. Records of payments (amount, date, payment method and the Razorpay order and
+          payment references) are kept for as long as Indian tax and payment rules require, which
+          can be up to 10 years, even after your account is deleted. Copies held in routine
+          infrastructure logs or backups are removed as those age out.
         </p>
       </section>
       <section>
@@ -375,6 +397,11 @@ export function DeleteAccountPage() {
             The subject and text of suggestions and reports you wrote. Ask us if you want any
             personal details in them removed.
           </li>
+          <li>
+            Payment records (amount, date, payment method and the Razorpay order and payment
+            references), for as long as Indian tax and payment rules require, which can be up to
+            10 years.
+          </li>
           <li>Copies in routine infrastructure logs or backups, until they age out.</li>
         </ul>
       </section>
@@ -382,6 +409,206 @@ export function DeleteAccountPage() {
         <p>
           Read the full <Link to="/privacy" className="font-semibold text-brand-600 hover:underline">Privacy Policy</Link>.
         </p>
+      </section>
+    </LegalShell>
+  )
+}
+
+export function RefundPolicyPage() {
+  return (
+    <LegalShell title="Refund & Cancellation Policy" updated="20 November 2026">
+      <section>
+        <p>
+          This policy covers tickets for paid events booked on CrewDay, operated by {OPERATOR_NAME}.
+          Online payments are processed by Razorpay.
+        </p>
+      </section>
+      <section>
+        <h2>1. Cancelling your registration</h2>
+        <ul>
+          <li>
+            You can cancel an upcoming registration from your ticket page in the app (My events, then
+            open the ticket and choose Cancel). Your seat is released straight away.
+          </li>
+          <li>
+            Cancel at least {REFUND_CUTOFF_HOURS} hours before the event starts and you get a{' '}
+            <strong>full refund</strong> of the ticket price.
+          </li>
+          <li>
+            Cancellations less than {REFUND_CUTOFF_HOURS} hours before the start, and no-shows, are{' '}
+            <strong>not refunded</strong>, because the seat can rarely be filled at that point.
+          </li>
+          <li>Free events can be cancelled at any time; there is nothing to refund.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>2. When the organiser cancels or changes an event</h2>
+        <ul>
+          <li>
+            If an event is cancelled, you get a <strong>full refund</strong> automatically; you do
+            not need to ask.
+          </li>
+          <li>
+            If the date, time or venue changes significantly and you can no longer attend, cancel
+            your ticket or contact us within 48 hours of the change being announced for a full
+            refund.
+          </li>
+        </ul>
+      </section>
+      <section>
+        <h2>3. Payment problems</h2>
+        <ul>
+          <li>
+            If you were charged twice, or money left your account but your registration was not
+            confirmed, the extra or failed amount is refunded in full. Write to <SupportContact />{' '}
+            with your registration or Razorpay payment ID if you notice it before we do.
+          </li>
+        </ul>
+      </section>
+      <section>
+        <h2>4. How and when refunds are paid</h2>
+        <ul>
+          <li>
+            We start an approved refund within {REFUND_START_BUSINESS_DAYS} business days of the
+            cancellation.
+          </li>
+          <li>
+            Refunds go back to the original payment method (card, UPI, net banking or wallet)
+            through Razorpay. Your bank usually credits it within {REFUND_CREDIT_BUSINESS_DAYS}{' '}
+            business days after that.
+          </li>
+          <li>
+            If you paid the organiser directly by UPI instead of online, the organiser returns the
+            money to the same UPI account within the same timelines.
+          </li>
+          <li>Your ticket shows the refund once it has been processed.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>5. Questions and complaints</h2>
+        <p>
+          Contact <SupportContact /> or see our{' '}
+          <Link to="/contact" className={linkClass}>
+            Contact &amp; Grievances
+          </Link>{' '}
+          page. We reply within {GRIEVANCE_REPLY_BUSINESS_DAYS} business days.
+        </p>
+      </section>
+    </LegalShell>
+  )
+}
+
+export function ShippingPolicyPage() {
+  return (
+    <LegalShell title="Delivery Policy" updated="20 November 2026">
+      <section>
+        <h2>Nothing is shipped</h2>
+        <p>
+          CrewDay sells registrations for events, not physical goods, so there is no shipping and
+          no shipping charge.
+        </p>
+      </section>
+      <section>
+        <h2>How your ticket is delivered</h2>
+        <ul>
+          <li>
+            Your ticket is delivered instantly in the app, under My events, as soon as your
+            registration is confirmed. For paid events that is once Razorpay confirms the payment,
+            usually within a few seconds.
+          </li>
+          <li>Show the QR code on your ticket at the venue to check in.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>Ticket not showing?</h2>
+        <p>
+          If you paid but no ticket appears within 30 minutes, contact <SupportContact /> with your
+          Razorpay payment ID. See also our{' '}
+          <Link to="/refund-policy" className={linkClass}>
+            Refund &amp; Cancellation Policy
+          </Link>
+          .
+        </p>
+      </section>
+    </LegalShell>
+  )
+}
+
+export function ContactPage() {
+  return (
+    <LegalShell title="Contact & Grievances" updated="20 November 2026">
+      <section>
+        <h2>Contact us</h2>
+        <ul>
+          <li>
+            <strong>Operated by:</strong> {OPERATOR_NAME}
+          </li>
+          <li>
+            <strong>Email:</strong> <SupportContact />
+          </li>
+          {SUPPORT_PHONE ? (
+            <li>
+              <strong>Phone:</strong>{' '}
+              <a href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`} className={linkClass}>
+                {SUPPORT_PHONE}
+              </a>
+            </li>
+          ) : null}
+          {BUSINESS_ADDRESS ? (
+            <li>
+              <strong>Address:</strong> {BUSINESS_ADDRESS}
+            </li>
+          ) : null}
+        </ul>
+      </section>
+      <section>
+        <h2>Grievance redressal</h2>
+        <p>
+          If you have a complaint about a booking, a payment, a refund or how your data is
+          handled, contact our grievance officer by email{SUPPORT_PHONE ? ' or phone' : ''}. Please
+          include your registration or Razorpay payment ID if it is about a payment.
+        </p>
+        <ul>
+          <li>
+            <strong>Grievance officer:</strong> {GRIEVANCE_OFFICER}
+          </li>
+          <li>
+            <strong>Email:</strong> <SupportContact />
+          </li>
+          {SUPPORT_PHONE ? (
+            <li>
+              <strong>Phone:</strong> {SUPPORT_PHONE}
+            </li>
+          ) : null}
+          <li>
+            We acknowledge every complaint and respond within {GRIEVANCE_REPLY_BUSINESS_DAYS}{' '}
+            business days.
+          </li>
+        </ul>
+        <p>
+          Payment disputes that we cannot resolve can also be raised with Razorpay at{' '}
+          <a href="https://razorpay.com/grievances/" className={linkClass} rel="noreferrer" target="_blank">
+            razorpay.com/grievances
+          </a>
+          .
+        </p>
+      </section>
+      <section>
+        <h2>Our policies</h2>
+        <ul>
+          <li>
+            <Link to="/terms" className={linkClass}>Terms &amp; Conditions</Link>
+          </li>
+          <li>
+            <Link to="/privacy" className={linkClass}>Privacy Policy</Link>
+          </li>
+          <li>
+            <Link to="/refund-policy" className={linkClass}>Refund &amp; Cancellation Policy</Link>
+          </li>
+          <li>
+            <Link to="/shipping-policy" className={linkClass}>Delivery Policy</Link>
+          </li>
+        </ul>
       </section>
     </LegalShell>
   )

@@ -118,6 +118,25 @@ export const CHECKIN_WINDOW_MINUTES = 180
 export const SUPPORT_EMAIL = (import.meta.env.VITE_SUPPORT_EMAIL ?? '').trim() || 'shalyagaonkar@gmail.com'
 
 /**
+ * Who legally runs CrewDay, as shown on the policy pages. Razorpay requires the
+ * site to name the same merchant its account is registered to, and to publish a
+ * grievance officer with an email and phone number (Payment Aggregator rules).
+ * Phone and address are optional at build time: rows without a value are hidden,
+ * but Razorpay's review expects both, so set them before going live.
+ */
+const env = (key: string) => ((import.meta.env[key] as string | undefined) ?? '').trim()
+export const OPERATOR_NAME = env('VITE_OPERATOR_NAME') || 'Akshata Tirupati Rathod'
+export const GRIEVANCE_OFFICER = env('VITE_GRIEVANCE_OFFICER') || OPERATOR_NAME
+export const SUPPORT_PHONE = env('VITE_SUPPORT_PHONE')
+export const BUSINESS_ADDRESS = env('VITE_BUSINESS_ADDRESS')
+
+/** Refund policy numbers, shared by the policy page and the checkout note. */
+export const REFUND_CUTOFF_HOURS = 24
+export const REFUND_START_BUSINESS_DAYS = 5
+export const REFUND_CREDIT_BUSINESS_DAYS = '5–7'
+export const GRIEVANCE_REPLY_BUSINESS_DAYS = 5
+
+/**
  * Whether the online (Razorpay) checkout button is offered. It stays off until
  * the Vercel API routes behind it (api/razorpay-*.ts) have their server-only
  * keys set; see docs/razorpay-setup.md. UPI payments confirmed by the organiser work

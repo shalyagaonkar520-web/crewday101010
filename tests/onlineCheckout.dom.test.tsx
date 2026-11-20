@@ -6,9 +6,14 @@
  * (send an amount, or mark anything paid).
  */
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { ReactElement } from 'react'
+import { MemoryRouter } from 'react-router-dom'
+import { cleanup, fireEvent, render as rtlRender, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Registration } from '@/types'
+
+// The panel links to the refund policy, so it needs a router around it.
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: MemoryRouter })
 
 const getPaymentSettings = vi.hoisted(() => vi.fn())
 const createRazorpayOrder = vi.hoisted(() => vi.fn())
