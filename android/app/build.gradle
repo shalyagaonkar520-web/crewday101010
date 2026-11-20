@@ -32,13 +32,13 @@ def releaseKeyAlias = signingValue('keyAlias', 'CREWDAY_KEY_ALIAS')
 def releaseKeyPassword = signingValue('keyPassword', 'CREWDAY_KEY_PASSWORD')
 def hasReleaseSigning = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
 
-// Defaults are the next release (versionCode 4 is already on Play); override per build with
-// -PversionCode=6 -PversionName=3.02. Play needs a higher versionCode on every
+// Defaults are the next release (versionCode 5 is already on Play); override per build with
+// -PversionCode=7 -PversionName=3.03. Play needs a higher versionCode on every
 // upload, so bump the code here (and package.json's version) with each release.
 // Computed up front: `versionCode (expr).toInteger()` would be parsed by Groovy as
 // a call to versionCode(...) followed by .toInteger() on its null result.
-def appVersionCode = (project.findProperty('versionCode') ?: '5').toString().toInteger()
-def appVersionName = (project.findProperty('versionName') ?: '3.01').toString()
+def appVersionCode = (project.findProperty('versionCode') ?: '6').toString().toInteger()
+def appVersionName = (project.findProperty('versionName') ?: '3.02').toString()
 
 android {
     namespace = "app.crewday"
