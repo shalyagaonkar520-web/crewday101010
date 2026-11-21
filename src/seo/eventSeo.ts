@@ -1,5 +1,5 @@
 import { format, isValid, parse, parseISO } from 'date-fns'
-import { plainText, priceLabel, truncateText, type EventMetaInput } from './eventMeta'
+import { plainText, priceLabel, truncateText, type EventMetaInput } from './eventMeta.js'
 
 /**
  * Structured data and readable text for an event page. Pure functions over
