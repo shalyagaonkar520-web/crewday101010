@@ -144,6 +144,9 @@ export default function ExplorePage() {
 
       <LocationBanner className="mt-5 mb-5" />
 
+      {/* Event cards are h3s; this keeps the outline h1 > h2 > h3 for crawlers and screen readers. */}
+      <h2 className="sr-only">Upcoming events</h2>
+
       {loading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-1">
           {Array.from({ length: 6 }, (_, index) => (

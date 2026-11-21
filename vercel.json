@@ -4,7 +4,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": { "api/**/*.ts": { "maxDuration": 15 } },
-  "rewrites": [{ "source": "/((?!api/|assets/|\\.well-known/|icons/|brand/|manifest\\.json|firebase-messaging-sw.js|crewday-mark.svg).*)", "destination": "/index.html" }],
+  "rewrites": [{ "source": "/((?!api/|assets/|\\.well-known/|icons/|brand/|manifest\\.json|firebase-messaging-sw.js|crewday-mark.svg|robots\\.txt|sitemap\\.xml|llms\\.txt|og/).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/assets/(.*)",
