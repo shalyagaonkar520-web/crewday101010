@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoadingScreen } from '@/components/ui/Feedback'
+import { RouteMeta } from '@/seo/routeMeta'
 import { UserLayout } from '@/layouts/UserLayout'
 import { AdminLayout } from '@/layouts/AdminLayout'
 import {
@@ -71,6 +72,7 @@ const ContactPage = lazy(() =>
 export function AppRoutes() {
   return (
     <Suspense fallback={<LoadingScreen />}>
+      <RouteMeta />
       <Routes>
         {/* Public */}
         {/* Signed out lands on explore; signed in goes to the feed. */}

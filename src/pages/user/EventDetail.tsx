@@ -28,6 +28,8 @@ import {
   leaveWaitlist,
 } from '@/services/registrationService'
 import { trackSync } from '@/services/analyticsService'
+import { buildEventMeta } from '@/seo/eventMeta'
+import { usePageMeta } from '@/seo/usePageMeta'
 import { AUDIENCE_TYPE_LABEL, CATEGORY_EMOJI } from '@/utils/constants'
 import { formatEventDate, formatPrice, formatTimeRange } from '@/utils/format'
 import type { CrewEvent, Registration, WaitlistEntry } from '@/types'
@@ -44,6 +46,18 @@ export default function EventDetailPage() {
   const [registration, setRegistration] = useState<Registration | null>(null)
   const [waitlist, setWaitlist] = useState<WaitlistEntry | null>(null)
   const [waitlistBusy, setWaitlistBusy] = useState(false)
+
+  // Title, description, canonical and share card come from the event itself.
+  usePageMeta(
+    event
+      ? buildEventMeta(event)
+      : {
+          title: 'Event · CrewDay',
+          description: 'A small social event on CrewDay.',
+          path: `/events/${eventId}`,
+          noindex: !loading,
+        },
+  )
 
   useEffect(() => {
     if (!eventId) return

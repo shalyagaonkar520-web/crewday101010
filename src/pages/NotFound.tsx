@@ -1,7 +1,18 @@
 import { LinkButton } from '@/components/ui/Button'
+import { useLocation } from 'react-router-dom'
 import { Logo } from '@/components/layout/Logo'
+import { usePageMeta } from '@/seo/usePageMeta'
 
 export default function NotFoundPage() {
+  const { pathname } = useLocation()
+  // Vercel answers 200 for unknown paths (SPA fallback), so noindex is what keeps these out of search.
+  usePageMeta({
+    title: 'Page not found · CrewDay',
+    description: 'This page does not exist. Browse upcoming CrewDay events instead.',
+    path: pathname,
+    noindex: true,
+  })
+
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-6 text-center">
       <Logo />

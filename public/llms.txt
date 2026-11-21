@@ -1,0 +1,25 @@
+# CrewDay
+
+> CrewDay is a platform where organisers host small social events in Bengaluru, India (game nights, walks, café meet-ups, workshops, sports) and people who are new to the city, or just want friends offline, join them for ₹49–₹99. You book a seat on the website or the Android app, pay by UPI or online through Razorpay, and show a QR ticket at the venue. Participants must be 18 or older.
+
+## What CrewDay is
+- [Explore events](https://crewday.nirmaansolutions.in/explore): upcoming small events in Bengaluru, each with date, venue, price and seats left.
+- [About CrewDay](https://crewday.nirmaansolutions.in/about): who it is for and how it works.
+- [Plan my CrewDay](https://crewday.nirmaansolutions.in/plan): a short question flow that suggests matching events.
+
+## How booking works
+- Event tickets cost ₹49–₹99. Some events are free.
+- Pay by UPI directly to the organiser, or online through Razorpay (cards, UPI, net banking, wallets).
+- A paid seat is held while payment is pending and confirmed when the payment is received. The ticket (a QR code) appears in the app under My events.
+- Cancel at least 24 hours before the event starts for a full refund. Cancellations later than that and no-shows are not refunded. If an organiser cancels an event, every ticket is refunded in full.
+
+## For organisers
+- Organisers create events, set a price and capacity, confirm payments and check attendees in by scanning QR tickets. To host an event on CrewDay, get in touch through [Contact](https://crewday.nirmaansolutions.in/contact).
+
+## Policies
+- [Terms & Conditions](https://crewday.nirmaansolutions.in/terms)
+- [Privacy Policy](https://crewday.nirmaansolutions.in/privacy)
+- [Refund & Cancellation Policy](https://crewday.nirmaansolutions.in/refund-policy)
+- [Delivery Policy](https://crewday.nirmaansolutions.in/shipping-policy): nothing is shipped; tickets are delivered in the app.
+- [Contact & Grievances](https://crewday.nirmaansolutions.in/contact)
+- [Delete your account](https://crewday.nirmaansolutions.in/delete-account)

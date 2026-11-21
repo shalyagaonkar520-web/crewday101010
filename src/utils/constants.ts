@@ -143,3 +143,12 @@ export const GRIEVANCE_REPLY_BUSINESS_DAYS = 5
  * regardless of this flag.
  */
 export const ONLINE_PAYMENTS = import.meta.env.VITE_ONLINE_PAYMENTS === 'true'
+
+/**
+ * The one public address of the site, used for canonical links and share cards.
+ * Never read from window.location: the Android app serves this same build from
+ * https://localhost, and a canonical pointing there would be wrong.
+ */
+export const SITE_URL = 'https://crewday.nirmaansolutions.in'
+export const SITE_NAME = 'CrewDay'
+export const DEFAULT_SHARE_IMAGE = `${SITE_URL}/og/crewday-share.png`
