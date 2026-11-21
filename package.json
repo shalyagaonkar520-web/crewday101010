@@ -28,6 +28,7 @@
     "android:open": "npx cap open android",
     "android:run": "npm run android:sync && npx cap run android",
     "android:apk": "npm run android:sync && cd android && gradlew assembleDebug",
+    "seo:indexnow": "node scripts/indexnow.mjs",
     "seo:share-image": "node scripts/make-share-image.mjs",
     "android:assets": "node scripts/make-app-assets.mjs && npx @capacitor/assets generate --android",
     "android:apk:release": "npm run android:sync && cd android && gradlew assembleRelease",

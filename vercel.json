@@ -3,8 +3,12 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "functions": { "api/**/*.ts": { "maxDuration": 15 } },
-  "rewrites": [{ "source": "/((?!api/|assets/|\\.well-known/|icons/|brand/|manifest\\.json|firebase-messaging-sw.js|crewday-mark.svg|robots\\.txt|sitemap\\.xml|llms\\.txt|og/).*)", "destination": "/index.html" }],
+  "functions": { "api/**/*.ts": { "maxDuration": 15, "includeFiles": "dist/index.html" } },
+  "rewrites": [
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/events/:eventId", "destination": "/api/page?kind=event&id=:eventId" },
+    { "source": "/:slug(explore|about|plan|terms|privacy|refund-policy|shipping-policy|contact|delete-account)", "destination": "/api/page?kind=page&slug=:slug" },
+    { "source": "/((?!api/|assets/|\\.well-known/|icons/|brand/|manifest\\.json|firebase-messaging-sw.js|crewday-mark.svg|robots\\.txt|sitemap\\.xml|llms\\.txt|og/).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/assets/(.*)",
