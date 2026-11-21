@@ -150,7 +150,7 @@ export function TermsPage() {
 
 export function PrivacyPage() {
   return (
-    <LegalShell title="Privacy Policy" updated="20 November 2026">
+    <LegalShell title="Privacy Policy" updated="21 November 2026">
       <section>
         <p>
           This policy explains what CrewDay collects, why, who can see it, and how you can have it
@@ -216,8 +216,8 @@ export function PrivacyPage() {
         <p>
           To create your profile, show you relevant events, issue and verify your tickets, tell you
           about events you registered for, let organisers run their events, handle problem reports,
-          keep the service secure, and improve the product. We do not sell your data and we do not
-          show ads.
+          keep the service secure, and improve the product. We do not sell your data. The website
+          shows ads from Google (see Service providers below); the Android app shows no ads.
         </p>
       </section>
       <section>
@@ -237,7 +237,10 @@ export function PrivacyPage() {
             <strong>Legal reasons</strong> — we may disclose information if the law requires it.
           </li>
         </ul>
-        <p>We do not share your personal data with advertisers or data brokers.</p>
+        <p>
+          We do not share your name, email, phone number or bookings with advertisers or data
+          brokers.
+        </p>
       </section>
       <section>
         <h2>4. Service providers</h2>
@@ -249,6 +252,25 @@ export function PrivacyPage() {
           </li>
           <li>
             <strong>Google Sign-In</strong> — if you choose to sign in with Google.
+          </li>
+          <li>
+            <strong>Google AdSense</strong> — shows ads on some public pages of the website (not in
+            the Android app, and never on ticket, payment or account pages). Google and its partners
+            use cookies to show ads based on your visits to this and other websites. You can turn
+            off personalised ads at{' '}
+            <a href="https://adssettings.google.com" className={linkClass} rel="noreferrer" target="_blank">
+              adssettings.google.com
+            </a>{' '}
+            and learn more at{' '}
+            <a
+              href="https://policies.google.com/technologies/ads"
+              className={linkClass}
+              rel="noreferrer"
+              target="_blank"
+            >
+              policies.google.com/technologies/ads
+            </a>
+            .
           </li>
           <li>
             <strong>Google Fonts</strong> — the website loads its typeface from Google, so Google

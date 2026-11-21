@@ -3,6 +3,7 @@ import { AuthProvider } from '@/store/AuthContext'
 import { ToastProvider } from '@/store/ToastContext'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ScrollToTop } from '@/components/ScrollToTop'
+import { AdSenseLoader } from '@/components/AdSenseLoader'
 import { AppRoutes } from '@/routes/AppRoutes'
 
 export default function App() {
@@ -12,6 +13,7 @@ export default function App() {
         <ToastProvider>
           <AuthProvider>
             <ScrollToTop />
+            <AdSenseLoader />
             <AppRoutes />
           </AuthProvider>
         </ToastProvider>

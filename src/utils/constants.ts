@@ -152,3 +152,12 @@ export const ONLINE_PAYMENTS = import.meta.env.VITE_ONLINE_PAYMENTS === 'true'
 export const SITE_URL = 'https://crewday.nirmaansolutions.in'
 export const SITE_NAME = 'CrewDay'
 export const DEFAULT_SHARE_IMAGE = `${SITE_URL}/og/crewday-share.png`
+
+/**
+ * Google AdSense publisher id for the website's ads (see AdSenseLoader). Public,
+ * not a secret. Set VITE_ADSENSE_CLIENT to an empty string to switch ads off.
+ */
+export const ADSENSE_CLIENT =
+  import.meta.env.VITE_ADSENSE_CLIENT !== undefined
+    ? String(import.meta.env.VITE_ADSENSE_CLIENT).trim()
+    : 'ca-pub-7422477829341364'
