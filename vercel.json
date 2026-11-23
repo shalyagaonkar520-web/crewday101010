@@ -8,6 +8,8 @@
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
     { "source": "/events/:eventId", "destination": "/api/page?kind=event&id=:eventId" },
     { "source": "/:slug(explore|about|plan|terms|privacy|refund-policy|shipping-policy|contact|delete-account)", "destination": "/api/page?kind=page&slug=:slug" },
+    { "source": "/faq", "destination": "/api/page?kind=page&slug=faq" },
+    { "source": "/guides/:guide", "destination": "/api/page?kind=page&slug=guides/:guide" },
     { "source": "/((?!api/|assets/|\\.well-known/|icons/|brand/|manifest\\.json|firebase-messaging-sw.js|crewday-mark.svg|robots\\.txt|ads\\.txt|sitemap\\.xml|llms\\.txt|og/).*)", "destination": "/index.html" }],
   "headers": [
     {

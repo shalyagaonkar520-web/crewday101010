@@ -9,6 +9,7 @@ import {
   whenText,
   type EventSeoInput,
 } from '../../src/seo/eventSeo.js'
+import { buildArticleJsonLd, buildFaqJsonLd, parseInline, type FaqGroup } from '../../src/seo/guides.js'
 import { findPublicPage, PUBLIC_PAGES, type PublicPage } from '../../src/seo/publicPages.js'
 
 /**
@@ -209,12 +210,43 @@ function eventListItem(event: EventSeoInput): string {
   return `<li>${link(`/events/${event.id}`, event.title)}: ${esc(details)}</li>`
 }
 
+/** Escaped text with its **bold** and [links](/path) turned into HTML. */
+export function inlineHtml(text: string): string {
+  return parseInline(text)
+    .map((part) =>
+      part.kind === 'bold'
+        ? `<strong>${esc(part.text)}</strong>`
+        : part.kind === 'link'
+          ? link(part.href, part.text)
+          : esc(part.text),
+    )
+    .join('')
+}
+
+/** The questions as visible HTML: the FAQPage structured data must match what people can read. */
+export function renderFaqs(faqs: FaqGroup[]): string {
+  const groups = faqs.filter((group) => group.items.length)
+  if (!groups.length) return ''
+  const named = groups.some((group) => group.heading)
+  const body = groups
+    .map((group) => {
+      const heading = named && group.heading ? `<h2>${esc(group.heading)}</h2>` : ''
+      const items = group.items
+        .map((item) => `<h3>${inlineHtml(item.question)}</h3><p>${inlineHtml(item.answer)}</p>`)
+        .join('')
+      return `${heading}${items}`
+    })
+    .join('')
+  // Guides have one unnamed group under a single heading; the FAQ page names each category.
+  return named ? `<section id="faq">${body}</section>` : `<section id="faq"><h2>Frequently asked questions</h2>${body}</section>`
+}
+
 export function renderPageSnapshot(page: PublicPage, events: EventSeoInput[]): string {
   const sections = page.sections
     .map((section) => {
       const heading = section.heading ? `<h2>${esc(section.heading)}</h2>` : ''
-      const paragraphs = (section.paragraphs ?? []).map((text) => `<p>${esc(text)}</p>`).join('')
-      const items = section.items?.length ? `<ul>${section.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : ''
+      const paragraphs = (section.paragraphs ?? []).map((text) => `<p>${inlineHtml(text)}</p>`).join('')
+      const items = section.items?.length ? `<ul>${section.items.map((i) => `<li>${inlineHtml(i)}</li>`).join('')}</ul>` : ''
       return `${heading}${paragraphs}${items}`
     })
     .join('')
@@ -226,7 +258,8 @@ export function renderPageSnapshot(page: PublicPage, events: EventSeoInput[]): s
   const links = page.links.length
     ? `<nav aria-label="Related pages"><ul>${page.links.map((l) => `<li>${link(l.href, l.text)}</li>`).join('')}</ul></nav>`
     : ''
-  return `<main><h1>${esc(page.heading)}</h1>${sections}${upcoming}${links}</main>`
+  const faqs = page.faqs ? renderFaqs(page.faqs) : ''
+  return `<main><h1>${esc(page.heading)}</h1>${sections}${faqs}${upcoming}${links}</main>`
 }
 
 export function renderEventSnapshot(event: EventSeoInput): string {
@@ -389,10 +422,20 @@ export async function handlePageRequest(request: Request, deps: SeoDeps): Promis
     title: page.title,
     description: page.description,
     path: page.path,
-    jsonLd: page.slug === 'explore' && events.length ? [itemListJsonLd(events)] : undefined,
+    jsonLd: pageJsonLd(page, events),
     body: renderPageSnapshot(page, events),
   })
   return htmlResponse(html, 200, degraded ? 'no-store' : PAGE_CACHE)
+}
+
+/** Structured data for a public page: events on /explore, Article and FAQPage on guides and the FAQ. */
+export function pageJsonLd(page: PublicPage, events: EventSeoInput[]): Record<string, unknown>[] | undefined {
+  const blocks: Record<string, unknown>[] = []
+  if (page.slug === 'explore' && events.length) blocks.push(itemListJsonLd(events))
+  if (page.guide) blocks.push(buildArticleJsonLd(page.guide))
+  const faq = page.faqs ? buildFaqJsonLd(page.faqs, page.path) : null
+  if (faq) blocks.push(faq)
+  return blocks.length ? blocks : undefined
 }
 
 function itemListJsonLd(events: EventSeoInput[]): Record<string, unknown> {
@@ -419,7 +462,14 @@ export function buildSitemap(events: EventSeoInput[]): string {
     { loc: `${SITE_URL}/`, priority: '1.0' },
     ...PUBLIC_PAGES.map((page) => ({
       loc: `${SITE_URL}${page.path}`,
-      priority: page.slug === 'explore' ? '0.9' : ['about', 'plan'].includes(page.slug) ? '0.7' : '0.3',
+      priority:
+        page.slug === 'explore'
+          ? '0.9'
+          : ['about', 'plan'].includes(page.slug)
+            ? '0.7'
+            : page.guide || page.faqs
+              ? '0.6'
+              : '0.3',
     })),
   ]
   const entries = [

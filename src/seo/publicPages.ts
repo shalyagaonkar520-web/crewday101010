@@ -8,6 +8,8 @@
  * src/utils/constants.ts and are checked against it in tests/seoPages.unit.test.ts.
  */
 
+import { FAQ_PAGE, GUIDES, guidePath, type FaqGroup, type GuideContent } from './guides.js'
+
 export const SEO_CITY = 'Bengaluru'
 export const SEO_REFUND_CUTOFF_HOURS = 24
 export const SEO_GRIEVANCE_REPLY_DAYS = 5
@@ -33,6 +35,10 @@ export interface PublicPage {
   links: { href: string; text: string }[]
   /** The server fills in the upcoming events here. */
   listsEvents?: boolean
+  /** Questions shown on the page and published as FAQPage structured data. */
+  faqs?: FaqGroup[]
+  /** Set for editorial guides: adds Article structured data. */
+  guide?: GuideContent
 }
 
 const policyLinks = [
@@ -224,6 +230,40 @@ export const PUBLIC_PAGES: PublicPage[] = [
     links: [{ href: '/privacy', text: 'Privacy Policy' }],
   },
 ]
+
+/* Guides and the FAQ: copy comes from content/seo/ via guides.ts. */
+
+function contentPage(content: GuideContent, slug: string, path: string, links: PublicPage['links']): PublicPage {
+  return {
+    slug,
+    path,
+    title: content.title,
+    description: content.description,
+    heading: content.heading,
+    // The direct answer comes first, straight under the h1.
+    sections: [{ paragraphs: content.answer }, ...content.sections],
+    links,
+    faqs: content.faqs,
+  }
+}
+
+export const GUIDE_PAGES: PublicPage[] = GUIDES.map((guide) => ({
+  ...contentPage(guide, `guides/${guide.slug}`, guidePath(guide.slug), [
+    { href: '/explore', text: 'Explore events' },
+    ...(FAQ_PAGE ? [{ href: '/faq', text: 'CrewDay FAQ' }] : []),
+  ]),
+  guide,
+}))
+
+export const FAQ_PUBLIC_PAGE: PublicPage | null = FAQ_PAGE
+  ? contentPage(FAQ_PAGE, 'faq', '/faq', [
+      { href: '/explore', text: 'Explore events' },
+      { href: '/about', text: 'About CrewDay' },
+      ...GUIDES.map((guide) => ({ href: guidePath(guide.slug), text: guide.heading })),
+    ])
+  : null
+
+PUBLIC_PAGES.push(...GUIDE_PAGES, ...(FAQ_PUBLIC_PAGE ? [FAQ_PUBLIC_PAGE] : []))
 
 /** The home page ("/") is served as a static file, so it is not in the table above. */
 export const HOME_SNAPSHOT = {

@@ -18,6 +18,7 @@ import {
  */
 const LandingPage = lazy(() => import('@/pages/Landing'))
 const PlanCrewDayPage = lazy(() => import('@/pages/PlanCrewDay'))
+const GuidePage = lazy(() => import('@/pages/Guide'))
 const LoginPage = lazy(() => import('@/pages/auth/Login'))
 const SignupPage = lazy(() => import('@/pages/auth/Signup'))
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPassword'))
@@ -88,6 +89,9 @@ export function AppRoutes() {
         <Route path="/about" element={<LandingPage />} />
         {/* Playful question flow that ends in matching events; open to guests. */}
         <Route path="/plan" element={<PlanCrewDayPage />} />
+        {/* Editorial guides and the FAQ; copy in content/seo/, pre-rendered by api/page.ts. */}
+        <Route path="/faq" element={<GuidePage />} />
+        <Route path="/guides/:slug" element={<GuidePage />} />
         <Route
           path="/login"
           element={
